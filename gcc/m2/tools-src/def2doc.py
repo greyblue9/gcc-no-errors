@@ -90,16 +90,16 @@ def init_state():
 
 def emit_node(name, nxt, previous, up):
     if args.texinfo:
-        output.write('@node ' + name + ', ' + nxt + ', ')
-        output.write(previous + ', ' + up + '\n')
+        output.write(f'@node {name}, {nxt}, ')
+        output.write(f'{previous}, {up}' + '\n')
     elif args.sphinx:
-        output.write('@c @node ' + name + ', ' + nxt + ', ')
-        output.write(previous + ', ' + up + '\n')
+        output.write(f'@c @node {name}, {nxt}, ')
+        output.write(f'{previous}, {up}' + '\n')
 
 
 def emit_section(name):
     if args.texinfo:
-        output.write('@section ' + name + '\n')
+        output.write(f'@section {name}' + '\n')
     elif args.sphinx:
         output.write(name + '\n')
         output.write('=' * len(name) + '\n')
@@ -107,7 +107,7 @@ def emit_section(name):
 
 def emit_sub_section(name):
     if args.texinfo:
-        output.write('@subsection ' + name + '\n')
+        output.write(f'@subsection {name}' + '\n')
     elif args.sphinx:
         output.write(name + '\n')
         output.write('-' * len(name) + '\n')
@@ -143,7 +143,7 @@ def display_menu():
     # display_menu displays the top level menu for library documentation.
     output.write('@menu\n')
     for lib in library_classifications:
-        output.write('* ' + lib[1] + '::' + lib[2] + '\n')
+        output.write(f'* {lib[1]}::{lib[2]}' + '\n')
     output.write('@end menu\n')
     output.write('\n')
     output.write('@c ' + '=' * 60 + '\n')
@@ -189,9 +189,9 @@ def emit_index(entry, tag):
     global state_obj
     if args.texinfo:
         if tag == '':
-            output.write('@findex ' + entry.rstrip() + '\n')
+            output.write(f'@findex {entry.rstrip()}' + '\n')
         else:
-            output.write('@findex ' + entry.rstrip() + ' ' + tag + '\n')
+            output.write(f'@findex {entry.rstrip()} {tag}' + '\n')
     elif args.sphinx:
         if tag == '':
             state_obj.to_index()
@@ -213,7 +213,7 @@ def check_index(line):
             procedure = words[2]
         else:
             procedure = words[1]
-    if (len(line) > 1) and (line[0:2] == '(*'):
+    if len(line) > 1 and line[:2] == '(*':
         state_obj.set_state(state_none)
     elif line == 'VAR':
         state_obj.set_state(state_var)
@@ -287,14 +287,12 @@ def emit_texinfo_content(f, line):
             output.write(line.rstrip() + '\n')
     else:
         output.write(line.rstrip() + '\n')
-    line = f.readline()
-    while line:
+    while line := f.readline():
         line = line.rstrip()
         check_index(line)
         line = line.replace('{', '@{').replace('}', '@}')
         line = demangle_system_datatype(line, 0)
         output.write(line + '\n')
-        line = f.readline()
     return f
 
 
@@ -314,14 +312,12 @@ def emit_sphinx_content(f, line):
             output.write(indent + line.rstrip() + '\n')
     else:
         output.write(indent + line.rstrip() + '\n')
-    line = f.readline()
-    while line:
+    while line := f.readline():
         line = line.rstrip()
         check_index(line)
         state_obj.to_code()
         line = demangle_system_datatype(line, indentation)
         output.write(indent + line + '\n')
-        line = f.readline()
     return f
 
 
@@ -368,19 +364,16 @@ def parse_definition(dir_, source, build, file, need_page):
 def parse_modules(up, dir_, build, source, list_of_modules):
     previous = ''
     i = 0
-    if len(list_of_modules) > 1:
-        nxt = dir_ + '/' + list_of_modules[1][:-4]
-    else:
-        nxt = ''
+    nxt = f'{dir_}/{list_of_modules[1][:-4]}' if len(list_of_modules) > 1 else ''
     while i < len(list_of_modules):
-        emit_node(dir_ + '/' + list_of_modules[i][:-4], nxt, previous, up)
-        emit_sub_section(dir_ + '/' + list_of_modules[i][:-4])
+        emit_node(f'{dir_}/{list_of_modules[i][:-4]}', nxt, previous, up)
+        emit_sub_section(f'{dir_}/{list_of_modules[i][:-4]}')
         parse_definition(dir_, source, build, list_of_modules[i], True)
         output.write('\n')
-        previous = dir_ + '/' + list_of_modules[i][:-4]
-        i = i + 1
+        previous = f'{dir_}/{list_of_modules[i][:-4]}'
+        i += 1
         if i+1 < len(list_of_modules):
-            nxt = dir_ + '/' + list_of_modules[i+1][:-4]
+            nxt = f'{dir_}/{list_of_modules[i + 1][:-4]}'
         else:
             nxt = ''
 
@@ -388,10 +381,8 @@ def parse_modules(up, dir_, build, source, list_of_modules):
 def do_cat(name):
     # do_cat displays the contents of file, name, to stdout
     with open(name, 'r') as file:
-        line = file.readline()
-        while line:
+        while line := file.readline():
             output.write(line.rstrip() + '\n')
-            line = file.readline()
 
 
 def module_menu(dir_, build, source):
@@ -403,12 +394,11 @@ def module_menu(dir_, build, source):
         list_of_files += os.listdir(os.path.join(source, dir_))
     if os.path.exists(os.path.join(source, dir_)):
         list_of_files += os.listdir(os.path.join(build, dir_))
-    list_of_files = list(dict.fromkeys(list_of_files).keys())
-    list_of_files.sort()
+    list_of_files = sorted(dict.fromkeys(list_of_files).keys())
     for file in list_of_files:
         if found_file(dir_, build, source, file):
             if (len(file) > 4) and (file[-4:] == '.def'):
-                output.write('* ' + dir_ + '/' + file[:-4] + '::' + file + '\n')
+                output.write(f'* {dir_}/{file[:-4]}::{file}' + '\n')
     output.write('@end menu\n')
     output.write('\n')
 
@@ -430,9 +420,7 @@ def found_file(dir_, build, source, file):
     if os.path.exists(name):
         return True
     name = os.path.join(os.path.join(source, dir_), file)
-    if os.path.exists(name):
-        return True
-    return False
+    return bool(os.path.exists(name))
 
 
 def find_file(dir_, build, source, file):
@@ -444,8 +432,8 @@ def find_file(dir_, build, source, file):
     name2 = os.path.join(os.path.join(source, dir_), file)
     if os.path.exists(name2):
         return name2
-    sys.stderr.write('file cannot be found in either ' + name1)
-    sys.stderr.write(' or ' + name2 + '\n')
+    sys.stderr.write(f'file cannot be found in either {name1}')
+    sys.stderr.write(f' or {name2}' + '\n')
     os.sys.exit(1)
 
 
@@ -459,16 +447,15 @@ def display_modules(up, dir_, build, source):
             ext = '.rst'
         else:
             ext = ''
-        if found_file(dir_, build, source, 'README' + ext):
-            do_cat(find_file(dir_, build, source, 'README' + ext))
+        if found_file(dir_, build, source, f'README{ext}'):
+            do_cat(find_file(dir_, build, source, f'README{ext}'))
         module_menu(dir_, build, source)
         list_of_files = []
         if os.path.exists(os.path.join(source, dir_)):
             list_of_files += os.listdir(os.path.join(source, dir_))
         if os.path.exists(os.path.join(source, dir_)):
             list_of_files += os.listdir(os.path.join(build, dir_))
-        list_of_files = list(dict.fromkeys(list_of_files).keys())
-        list_of_files.sort()
+        list_of_files = sorted(dict.fromkeys(list_of_files).keys())
         list_of_modules = []
         for file in list_of_files:
             if found_file(dir_, build, source, file):
@@ -477,8 +464,8 @@ def display_modules(up, dir_, build, source):
         list_of_modules.sort()
         parse_modules(up, dir_, build, source, list_of_modules)
     else:
-        line = 'directory ' + dir_ + ' not found in either '
-        line += build + ' or ' + source
+        line = f'directory {dir_} not found in either '
+        line += f'{build} or {source}'
         sys.stderr.write(line + '\n')
 
 
@@ -511,8 +498,7 @@ def collect_args():
                         default='', action='store')
     parser.add_argument('-x', '--sphinx', help='generate sphinx documentation',
                         default=False, action='store_true')
-    args = parser.parse_args()
-    return args
+    return parser.parse_args()
 
 
 def handle_file():

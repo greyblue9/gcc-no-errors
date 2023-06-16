@@ -211,7 +211,7 @@ class Error:
     def __repr__(self):
         s = self.message
         if self.line:
-            s += ': "%s"' % self.line
+            s += f': "{self.line}"'
         return s
 
 
@@ -247,20 +247,14 @@ class ChangeLogEntry:
                 line = m.group('content')
 
             if in_location:
-                # Strip everything that is not a filename in "line":
-                # entities "(NAME)", cases "<PATTERN>", conditions
-                # "[COND]", entry text (the colon, if present, and
-                # anything that follows it).
-                m = end_of_location_regex.search(line)
-                if m:
+                if m := end_of_location_regex.search(line):
                     line = line[:m.start()]
                     in_location = False
 
                 # At this point, all that's left is a list of filenames
                 # separated by commas and whitespaces.
                 for file in line.split(','):
-                    file = file.strip()
-                    if file:
+                    if file := file.strip():
                         if file.endswith('*'):
                             self.file_patterns.append(file[:-1])
                         else:
@@ -268,10 +262,7 @@ class ChangeLogEntry:
 
     @property
     def datetime(self):
-        for author in self.author_lines:
-            if author[1]:
-                return author[1]
-        return None
+        return next((author[1] for author in self.author_lines if author[1]), None)
 
     @property
     def authors(self):
@@ -282,10 +273,7 @@ class ChangeLogEntry:
         return not self.lines and self.prs == self.initial_prs
 
     def contains_author(self, author):
-        for author_lines in self.author_lines:
-            if author_lines[0] == author:
-                return True
-        return False
+        return any(author_lines[0] == author for author_lines in self.author_lines)
 
 
 class GitInfo:
@@ -324,8 +312,7 @@ class GitCommit:
 
         # Identify first if the commit is a Revert commit
         for line in self.info.lines:
-            m = revert_regex.fullmatch(line)
-            if m:
+            if m := revert_regex.fullmatch(line):
                 self.revert_commit = m.group('hash')
                 break
         if self.revert_commit:
@@ -357,9 +344,9 @@ class GitCommit:
             return
         elif project_files:
             err = 'ChangeLog, DATESTAMP, BASE-VER and DEV-PHASE updates ' \
-                  'should be done separately from normal commits\n' \
-                  '(note: ChangeLog entries will be automatically ' \
-                  'added by a cron job)'
+                      'should be done separately from normal commits\n' \
+                      '(note: ChangeLog entries will be automatically ' \
+                      'added by a cron job)'
             self.errors.append(Error(err))
             return
 
@@ -378,8 +365,12 @@ class GitCommit:
                 self.check_mentioned_files()
                 self.check_for_correct_changelog()
         if self.subject_prs:
-            self.errors.append(Error('PR %s in subject but not in changelog' %
-                                     ', '.join(self.subject_prs), self.info.lines[0]))
+            self.errors.append(
+                Error(
+                    f"PR {', '.join(self.subject_prs)} in subject but not in changelog",
+                    self.info.lines[0],
+                )
+            )
 
     @property
     def success(self):
@@ -392,12 +383,12 @@ class GitCommit:
     @classmethod
     def is_changelog_filename(cls, path, allow_suffix=False):
         basename = os.path.basename(path)
-        if basename == 'ChangeLog':
-            return True
-        elif allow_suffix and basename.startswith('ChangeLog'):
-            return True
-        else:
-            return False
+        return bool(
+            basename == 'ChangeLog'
+            or basename != 'ChangeLog'
+            and allow_suffix
+            and basename.startswith('ChangeLog')
+        )
 
     def find_changelog_location(self, name):
         if name.startswith('\t'):
@@ -419,11 +410,10 @@ class GitCommit:
         for entry in string.split('\n'):
             parts = entry.split('\t')
             t = parts[0]
-            if t == 'A' or t == 'D' or t == 'M':
+            if t in ['A', 'D', 'M']:
                 modified_files.append((parts[1], t))
             elif t.startswith('R'):
-                modified_files.append((parts[1], 'D'))
-                modified_files.append((parts[2], 'A'))
+                modified_files.extend(((parts[1], 'D'), (parts[2], 'A')))
         return modified_files
 
     def init_changelog_locations(self, ref_name):
@@ -468,8 +458,7 @@ class GitCommit:
                 if not line.startswith('\t* ') or not line.endswith(':') or ' ' in line[3:-1]:
                     self.errors.append(Error('line exceeds %d character limit'
                                              % LINE_LIMIT, line))
-            m = changelog_regex.match(line)
-            if m:
+            if m := changelog_regex.match(line):
                 last_entry = ChangeLogEntry(m.group(1).rstrip('/'),
                                             self.top_level_authors,
                                             self.top_level_prs)
@@ -489,7 +478,7 @@ class GitCommit:
                     m = additional_author_regex.match(line)
                     if len(m.group('spaces')) != 4:
                         msg = 'additional author must be indented with '\
-                              'one tab and four spaces'
+                                  'one tab and four spaces'
                         self.errors.append(Error(msg, line))
                     else:
                         author_tuple = (m.group('name'), None)
@@ -500,7 +489,7 @@ class GitCommit:
                     if not component:
                         self.errors.append(Error('missing PR component', line))
                         continue
-                    elif not component[:-1] in bug_components:
+                    elif component[:-1] not in bug_components:
                         self.errors.append(Error('invalid PR component', line))
                         continue
                     else:
@@ -519,8 +508,7 @@ class GitCommit:
                 elif lowered_line.startswith(REVIEW_PREFIXES):
                     continue
                 else:
-                    m = cherry_pick_regex.search(line)
-                    if m:
+                    if m := cherry_pick_regex.search(line):
                         commit = m.group('hash')
                         if self.cherry_pick_commit:
                             msg = 'multiple cherry pick lines'
@@ -557,31 +545,26 @@ class GitCommit:
                     self.errors.append(err)
                 elif pr_line:
                     last_entry.prs.append(pr_line)
-                else:
-                    m = star_prefix_regex.match(line)
-                    if m:
-                        if (len(m.group('spaces')) != 1 and
-                                not last_entry.parentheses_stack):
-                            msg = 'one space should follow asterisk'
-                            self.errors.append(Error(msg, line))
-                        else:
-                            content = m.group('content')
-                            parts = content.split(':')
-                            if len(parts) > 1:
-                                for needle in ('()', '[]', '<>'):
-                                    if ' ' + needle in parts[0]:
-                                        msg = f'empty group "{needle}" found'
-                                        self.errors.append(Error(msg, line))
-                            last_entry.lines.append(line)
-                            self.process_parentheses(last_entry, line)
+                elif m := star_prefix_regex.match(line):
+                    if len(m.group('spaces')) == 1 or last_entry.parentheses_stack:
+                        content = m.group('content')
+                        parts = content.split(':')
+                        if len(parts) > 1:
+                            for needle in ('()', '[]', '<>'):
+                                if f' {needle}' in parts[0]:
+                                    msg = f'empty group "{needle}" found'
+                                    self.errors.append(Error(msg, line))
+                        last_entry.lines.append(line)
+                        self.process_parentheses(last_entry, line)
                     else:
-                        if last_entry.is_empty:
-                            msg = 'first line should start with a tab, ' \
-                                  'an asterisk and a space'
-                            self.errors.append(Error(msg, line))
-                        else:
-                            last_entry.lines.append(line)
-                            self.process_parentheses(last_entry, line)
+                        self.errors.append(Error('one space should follow asterisk', line))
+                elif last_entry.is_empty:
+                    msg = 'first line should start with a tab, ' \
+                              'an asterisk and a space'
+                    self.errors.append(Error(msg, line))
+                else:
+                    last_entry.lines.append(line)
+                    self.process_parentheses(last_entry, line)
 
     def process_parentheses(self, last_entry, line):
         for c in line:
@@ -634,7 +617,7 @@ class GitCommit:
             if file[0] == changelog_file:
                 # root ChangeLog file
                 return ''
-            index = file[0].find('/' + changelog_file)
+            index = file[0].find(f'/{changelog_file}')
             if index != -1:
                 return file[0][:index]
         return None
@@ -661,10 +644,7 @@ class GitCommit:
 
     @classmethod
     def in_ignored_location(cls, path):
-        for ignored in ignored_prefixes:
-            if path.startswith(ignored):
-                return True
-        return False
+        return any(path.startswith(ignored) for ignored in ignored_prefixes)
 
     def get_changelog_by_path(self, path):
         components = path.split('/')

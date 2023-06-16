@@ -70,9 +70,8 @@ class Bug:
         self.parse_known_to_fail()
 
     def parse_summary(self):
-        m = re.match(regex, self.data['summary'])
-        if m:
-            self.versions = m.group(2).split('/')
+        if m := re.match(regex, self.data['summary']):
+            self.versions = m[2].split('/')
             self.is_regression = True
             self.regex_match = m
 
@@ -103,9 +102,8 @@ class Bug:
     def add_known_to_fail(self, release):
         if release in self.fail_versions:
             return False
-        else:
-            self.fail_versions.append(release)
-            return True
+        self.fail_versions.append(release)
+        return True
 
     def update_summary(self, api_key, doit):
         if not self.versions:
@@ -117,7 +115,7 @@ class Bug:
         new_summary = self.serialize_summary()
         if new_summary != summary:
             print(self.name())
-            print('  changing summary to "%s"' % (new_summary))
+            print(f'  changing summary to "{new_summary}"')
             self.modify_bug(api_key, {'summary': new_summary}, doit)
             return True
 
@@ -131,22 +129,27 @@ class Bug:
         args = {}
         if old_major == new_major:
             args['target_milestone'] = new_milestone
-            print('  changing target milestone: "%s" to "%s" (same branch)' % (old_milestone, new_milestone))
+            print(
+                f'  changing target milestone: "{old_milestone}" to "{new_milestone}" (same branch)'
+            )
         elif self.is_regression and new_major in self.versions:
             args['target_milestone'] = new_milestone
-            print('  changing target milestone: "%s" to "%s" (regresses with the new milestone)'
-                  % (old_milestone, new_milestone))
+            print(
+                f'  changing target milestone: "{old_milestone}" to "{new_milestone}" (regresses with the new milestone)'
+            )
         else:
             print('  not changing target milestone: not a regression or does not regress with the new milestone')
 
         if 'target_milestone' in args and comment:
-            print('  adding comment: "%s"' % comment)
+            print(f'  adding comment: "{comment}"')
             args['comment'] = {'comment': comment}
 
         if new_fail_version:
             if self.add_known_to_fail(new_fail_version):
                 s = self.serialize_known_to_fail()
-                print('  changing known_to_fail: "%s" to "%s"' % (self.data['cf_known_to_fail'], s))
+                print(
+                    f"""  changing known_to_fail: "{self.data['cf_known_to_fail']}" to "{s}\""""
+                )
                 args['cf_known_to_fail'] = s
 
         if len(args.keys()) != 0:
@@ -160,8 +163,12 @@ class Bug:
         assert self.is_regression
 
         new_version = '/'.join(self.versions)
-        new_summary = self.regex_match.group(1) + new_version + self.regex_match.group(3) + self.regex_match.group(4)
-        return new_summary
+        return (
+            self.regex_match.group(1)
+            + new_version
+            + self.regex_match.group(3)
+            + self.regex_match.group(4)
+        )
 
     @staticmethod
     def to_version(version):
@@ -174,13 +181,13 @@ class Bug:
         return ', '.join(sorted(self.fail_versions, key=self.to_version))
 
     def modify_bug(self, api_key, params, doit):
-        u = base_url + 'bug/' + str(self.data['id'])
+        u = f'{base_url}bug/' + str(self.data['id'])
 
         data = {
             'ids': [self.data['id']],
             'api_key': api_key}
 
-        data.update(params)
+        data |= params
 
         if doit:
             r = requests.put(u, data=json.dumps(data), headers={'content-type': 'text/javascript'})
@@ -189,12 +196,12 @@ class Bug:
     @staticmethod
     def get_major_version(release):
         parts = release.split('.')
-        assert len(parts) == 2 or len(parts) == 3
+        assert len(parts) in {2, 3}
         return '.'.join(parts[:-1])
 
     @staticmethod
     def get_bugs(api_key, query):
-        u = base_url + 'bug'
+        u = f'{base_url}bug'
         r = requests.get(u, params=query)
         return [Bug(x) for x in r.json()['bugs']]
 

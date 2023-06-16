@@ -88,10 +88,7 @@ import math
 def divide(dividend, divisor):
   """ Return the quotient, avoiding division by zero.
   """
-  if divisor == 0:
-    return sys.float_info.max
-  else:
-    return dividend / divisor
+  return sys.float_info.max if divisor == 0 else dividend / divisor
 
 
 ################################################################# File and Line
@@ -118,10 +115,8 @@ def match_files(fileglob):
 
 def lines_in_file(filename):
   """ Return an iterator over lines in the named file.  """
-  filedesc = open(filename, "r")
-  for line in filedesc:
-    yield line
-  filedesc.close()
+  with open(filename, "r") as filedesc:
+    yield from filedesc
 
 
 def lines_containing_pattern(pattern, lines):
@@ -138,9 +133,7 @@ def lines_containing_pattern(pattern, lines):
 
 
 def strip_redundant_digits(numrep):
-  if numrep.find(".") == -1:
-    return numrep
-  return numrep.rstrip("0").rstrip(".")
+  return numrep if numrep.find(".") == -1 else numrep.rstrip("0").rstrip(".")
 
 
 def text_number(number):
@@ -161,7 +154,7 @@ def text_significant(digits, number):
 
 
 def text_percent(number):
-  return text_significant(3, number*100) + "%"
+  return f"{text_significant(3, number * 100)}%"
 
 
 ################################################################ T-Distribution
@@ -241,10 +234,7 @@ t_dist_table = [
 
 
 def t_dist_alpha_at_index(ax):
-  if ax == 0:
-    return .25 # effectively no confidence
-  else:
-    return t_dist_table[0][ax]
+  return .25 if ax == 0 else t_dist_table[0][ax]
 
 
 def t_dist_degree_at_index(dx):
@@ -285,8 +275,7 @@ def t_dist_value_within_deviations(dx, ax, deviations):
   root = math.sqrt(count)
   value = t_dist_value_at_index(ax, dx)
   nominal = value / root
-  comparison = nominal <= deviations
-  return comparison
+  return nominal <= deviations
 
 
 def t_dist_index_of_degree_for_deviations(ax, deviations):
@@ -385,13 +374,13 @@ class Sample:
     return find_t_dist_degree(self.alpha, divide(radius, self.deviation))
 
   def __str__(self):
-    text = "trial count is " + text_number(self.count)
-    text += ", mean is " + text_number(self.mean)
-    text += " (" + text_number(confidence_from_alpha(self.alpha)) +"%"
-    text += " confidence in " + text_number(self.mean - self.radius)
-    text += " to " + text_number(self.mean + self.radius) + ")"
+    text = f"trial count is {text_number(self.count)}"
+    text += f", mean is {text_number(self.mean)}"
+    text += f" ({text_number(confidence_from_alpha(self.alpha))}%"
+    text += f" confidence in {text_number(self.mean - self.radius)}"
+    text += f" to {text_number(self.mean + self.radius)})"
     text += ",\nstd.deviation is " + text_number(self.deviation)
-    text += ", std.error is " + text_number(self.error)
+    text += f", std.error is {text_number(self.error)}"
     return text
 
 
@@ -423,12 +412,12 @@ class Comparison:
     self.count = max(rising, falling) + 1
 
   def __str__(self):
-    message = "The " + self.larger + " sample appears to be "
+    message = f"The {self.larger} sample appears to be "
     change = divide(self.upper.mean, self.lower.mean) - 1
     message += text_percent(change) + " larger,\n"
     confidence = confidence_from_alpha(self.a_actual)
     if confidence >= 60:
-      message += "with " + text_number(confidence) + "% confidence"
+      message += f"with {text_number(confidence)}% confidence"
       message += " of being larger."
     else:
       message += "but with no confidence of actually being larger."
@@ -436,7 +425,7 @@ class Comparison:
       confidence = confidence_from_alpha(self.a_wanted)
       message += "\nTo reach " + text_number(confidence) + "% confidence,"
       if self.count < 100:
-        message += " you need roughly " + text_number(self.count) + " trials,\n"
+        message += f" you need roughly {text_number(self.count)}" + " trials,\n"
         message += "assuming the standard deviation is stable, which is iffy."
       else:
         message += "\nyou need to reduce the larger deviation"
@@ -514,16 +503,13 @@ numpct = number + percent
 total_format = label + number + number + number + number + " kB\n"
 total_parser = re.compile(total_format)
 tmvar_format = label + numpct + " usr" + numpct + " sys"
-tmvar_format += numpct + " wall" + number + " kB " + percent + " ggc\n"
+tmvar_format += f"{numpct} wall{number} kB {percent}" + " ggc\n"
 tmvar_parser = re.compile(tmvar_format)
 replace = r"\2\t\3\t\4\t\5\t\1"
 
 
 def split_time_report(lines, pattern):
-  if pattern == "TOTAL":
-    parser = total_parser
-  else:
-    parser = tmvar_parser
+  parser = total_parser if pattern == "TOTAL" else tmvar_parser
   for line in lines:
     modified = parser.sub(replace, line)
     if modified != line:

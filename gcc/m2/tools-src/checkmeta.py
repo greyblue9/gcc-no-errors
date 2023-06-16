@@ -109,8 +109,7 @@ def handle_arguments():
     parser.add_argument('-s', '--srcdir',
                         help='set source directory.',
                         default='.', action='store')
-    args = parser.parse_args()
-    return args
+    return parser.parse_args()
 
 
 def main():

@@ -68,9 +68,7 @@ def get_cpustr():
             break
     # stepping for SKX only
     stepping = cpu[0] == "GenuineIntel" and cpu[1] == 6 and cpu[2] == 0x55
-    if stepping:
-        return "%s-%d-%X-%X" % tuple(cpu)
-    return "%s-%d-%X" % tuple(cpu)[:3]
+    return "%s-%d-%X-%X" % tuple(cpu) if stepping else "%s-%d-%X" % tuple(cpu)[:3]
 
 def find_event(eventurl, model):
     print("Downloading", eventurl, file = sys.stderr)
@@ -81,7 +79,7 @@ def find_event(eventurl, model):
     found = 0
     for j in events:
         if j['EventName'] in target_events:
-            event = "cpu/event=%s,umask=%s/" % (j['EventCode'], j['UMask'])
+            event = f"cpu/event={j['EventCode']},umask={j['UMask']}/"
             if 'PEBS' in j and int(j['PEBS']) > 0:
                 event += "p"
             if args.script:
@@ -96,7 +94,7 @@ if not args.all:
     if not cpu:
         sys.exit("Unknown CPU type")
 
-url = baseurl + "/mapfile.csv"
+url = f"{baseurl}/mapfile.csv"
 print("Downloading", url, file = sys.stderr)
 u = urllib.request.urlopen(url)
 found = 0
@@ -170,7 +168,7 @@ echo >&2 "Unknown CPU. Run contrib/gen_autofdo_event.py --all --script to update
     print('fi')
 
 if cpufound == 0 and not args.all:
-    sys.exit('CPU %s not found' % cpu)
+    sys.exit(f'CPU {cpu} not found')
 
 if found == 0:
     sys.exit('Branch event not found')

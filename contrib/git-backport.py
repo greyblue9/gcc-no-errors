@@ -31,5 +31,5 @@ if __name__ == '__main__':
     parser.add_argument('revision', help='Revision')
     args = parser.parse_args()
 
-    subprocess.run('git cherry-pick -x %s' % args.revision, shell=True)
+    subprocess.run(f'git cherry-pick -x {args.revision}', shell=True)
     subprocess.run(fixup_script, shell=True)

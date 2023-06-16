@@ -91,7 +91,7 @@ _MANIFEST_PATH_PATTERN = '%s/%s/%s.xfail'
 _OPTIONS = None
 
 def Error(msg):
-  print('error: %s' % msg, file=sys.stderr)
+  print(f'error: {msg}', file=sys.stderr)
   sys.exit(1)
 
 
@@ -139,11 +139,10 @@ class TestResult(object):
           self.description = re.sub(_OPTIONS.srcpath_regex, '',
                                     self.description)
       except:
-        print('Failed to parse summary line: "%s"' % summary_line,
-              file=sys.stderr)
+        print(f'Failed to parse summary line: "{summary_line}"', file=sys.stderr)
         raise
       self.ordinal = ordinal
-      if tool == None or exp == None:
+      if tool is None or exp is None:
         # .sum file seem to be broken.  There was no "tool" and/or "exp"
         # lines preceding this result.
         print(f'.sum file seems to be broken: tool="{tool}", exp="{exp}", summary_line="{summary_line}"',
@@ -152,11 +151,12 @@ class TestResult(object):
       self.tool = tool
       self.exp = exp
     except ValueError:
-      Error('Cannot parse summary line "%s"' % summary_line)
+      Error(f'Cannot parse summary line "{summary_line}"')
 
     if self.state not in _VALID_TEST_RESULTS:
-      Error('Invalid test result %s in "%s" (parsed as "%s")' % (
-            self.state, summary_line, self))
+      Error(
+          f'Invalid test result {self.state} in "{summary_line}" (parsed as "{self}")'
+      )
 
   def __lt__(self, other):
     if (self.tool != other.tool):
@@ -187,10 +187,8 @@ class TestResult(object):
     return not (self == other)
 
   def __str__(self):
-    attrs = ''
-    if self.attrs:
-      attrs = '%s | ' % self.attrs
-    return '%s%s: %s %s' % (attrs, self.state, self.name, self.description)
+    attrs = f'{self.attrs} | ' if self.attrs else ''
+    return f'{attrs}{self.state}: {self.name} {self.description}'
 
   def ExpirationDate(self):
     # Return a datetime.date object with the expiration date for this
@@ -200,15 +198,12 @@ class TestResult(object):
       if not expiration:
         Error('Invalid expire= format in "%s".  Must be of the form '
               '"expire=YYYYMMDD"' % self)
-      return datetime.date(int(expiration.group(1)),
-                           int(expiration.group(2)),
-                           int(expiration.group(3)))
+      return datetime.date(int(expiration[1]), int(expiration[2]),
+                           int(expiration[3]))
     return None
 
   def HasExpired(self):
-    # Return True if the expiration date of this result has passed.
-    expiration_date = self.ExpirationDate()
-    if expiration_date:
+    if expiration_date := self.ExpirationDate():
       return _OPTIONS.expiry_today_date > expiration_date
 
 
@@ -261,22 +256,19 @@ class ResultSet(set):
 
 def GetMakefileValue(makefile_name, value_name):
   if os.path.exists(makefile_name):
-    makefile = open(makefile_name, encoding='latin-1', mode='r')
-    for line in makefile:
-      if line.startswith(value_name):
-        (_, value) = line.split('=', 1)
-        value = value.strip()
-        makefile.close()
-        return value
-    makefile.close()
+    with open(makefile_name, encoding='latin-1', mode='r') as makefile:
+      for line in makefile:
+        if line.startswith(value_name):
+          (_, value) = line.split('=', 1)
+          value = value.strip()
+          makefile.close()
+          return value
   return None
 
 
 def ValidBuildDirectory(builddir):
-  if (not os.path.exists(builddir) or
-      not os.path.exists('%s/Makefile' % builddir)):
-    return False
-  return True
+  return bool(
+      os.path.exists(builddir) and os.path.exists(f'{builddir}/Makefile'))
 
 
 def IsComment(line):
@@ -342,38 +334,37 @@ def GetNegativeResult(line):
 def ParseManifestWorker(result_set, manifest_path):
   """Read manifest_path, adding the contents to result_set."""
   if _OPTIONS.verbosity >= 5:
-    print('Parsing manifest file %s.' % manifest_path)
-  manifest_file = open(manifest_path, encoding='latin-1', mode='r')
-  for orig_line in manifest_file:
-    line = orig_line.strip()
-    if line == "":
-      pass
-    elif IsComment(line):
-      pass
-    elif IsNegativeResult(line):
-      result_set.remove(result_set.MakeTestResult(GetNegativeResult(line)))
-    elif IsInclude(line):
-      ParseManifestWorker(result_set, GetIncludeFile(line, manifest_path))
-    elif IsInterestingResult(line):
-      result = result_set.MakeTestResult(line)
-      if result.HasExpired():
-        # Ignore expired manifest entries.
-        if _OPTIONS.verbosity >= 4:
-          print('WARNING: Expected failure "%s" has expired.' % line.strip())
-        continue
-      result_set.add(result)
-    elif IsExpLine(orig_line):
-      result_set.current_exp = _EXP_LINE_REX.match(orig_line).groups()[0]
-      if _OPTIONS.srcpath_regex and _OPTIONS.srcpath_regex != '':
-        result_set.current_exp = re.sub(_OPTIONS.srcpath_regex, '',
-                                        result_set.current_exp)
-    elif IsToolLine(orig_line):
-      result_set.current_tool = _TOOL_LINE_REX.match(orig_line).groups()[0]
-    elif IsSummaryLine(orig_line):
-      result_set.ResetToolExp()
-    else:
-      Error('Unrecognized line in manifest file: %s' % line)
-  manifest_file.close()
+    print(f'Parsing manifest file {manifest_path}.')
+  with open(manifest_path, encoding='latin-1', mode='r') as manifest_file:
+    for orig_line in manifest_file:
+      line = orig_line.strip()
+      if line == "":
+        pass
+      elif IsComment(line):
+        pass
+      elif IsNegativeResult(line):
+        result_set.remove(result_set.MakeTestResult(GetNegativeResult(line)))
+      elif IsInclude(line):
+        ParseManifestWorker(result_set, GetIncludeFile(line, manifest_path))
+      elif IsInterestingResult(line):
+        result = result_set.MakeTestResult(line)
+        if result.HasExpired():
+                  # Ignore expired manifest entries.
+          if _OPTIONS.verbosity >= 4:
+            print(f'WARNING: Expected failure "{line.strip()}" has expired.')
+          continue
+        result_set.add(result)
+      elif IsExpLine(orig_line):
+        result_set.current_exp = _EXP_LINE_REX.match(orig_line).groups()[0]
+        if _OPTIONS.srcpath_regex and _OPTIONS.srcpath_regex != '':
+          result_set.current_exp = re.sub(_OPTIONS.srcpath_regex, '',
+                                          result_set.current_exp)
+      elif IsToolLine(orig_line):
+        result_set.current_tool = _TOOL_LINE_REX.match(orig_line).groups()[0]
+      elif IsSummaryLine(orig_line):
+        result_set.ResetToolExp()
+      else:
+        Error(f'Unrecognized line in manifest file: {line}')
 
 
 def ParseManifest(manifest_path):
@@ -389,34 +380,33 @@ def ParseSummary(sum_fname):
   # ordinal is used when sorting the results so that tests within each
   # .exp file are kept sorted.
   ordinal=0
-  sum_file = open(sum_fname, encoding='latin-1', mode='r')
-  for line in sum_file:
-    if IsInterestingResult(line):
-      result = result_set.MakeTestResult(line, ordinal)
-      ordinal += 1
-      if result.HasExpired():
-        # ??? What is the use-case for this?  How "expiry" annotations are
-        # ??? supposed to be added to .sum results?
-        # Tests that have expired are not added to the set of expected
-        # results. If they are still present in the set of actual results,
-        # they will cause an error to be reported.
-        if _OPTIONS.verbosity >= 4:
-          print('WARNING: Expected failure "%s" has expired.' % line.strip())
-        continue
-      result_set.add(result)
-    elif IsExpLine(line):
-      result_set.current_exp = _EXP_LINE_REX.match(line).groups()[0]
-      if _OPTIONS.srcpath_regex and _OPTIONS.srcpath_regex != '':
-        result_set.current_exp = re.sub(_OPTIONS.srcpath_regex, '',
-                                        result_set.current_exp)
-      result_set.testsuites.add((result_set.current_tool,
-                                 result_set.current_exp))
-    elif IsToolLine(line):
-      result_set.current_tool = _TOOL_LINE_REX.match(line).groups()[0]
-      result_set.current_exp = None
-    elif IsSummaryLine(line):
-      result_set.ResetToolExp()
-  sum_file.close()
+  with open(sum_fname, encoding='latin-1', mode='r') as sum_file:
+    for line in sum_file:
+      if IsInterestingResult(line):
+        result = result_set.MakeTestResult(line, ordinal)
+        ordinal += 1
+        if result.HasExpired():
+                  # ??? What is the use-case for this?  How "expiry" annotations are
+                  # ??? supposed to be added to .sum results?
+                  # Tests that have expired are not added to the set of expected
+                  # results. If they are still present in the set of actual results,
+                  # they will cause an error to be reported.
+          if _OPTIONS.verbosity >= 4:
+            print(f'WARNING: Expected failure "{line.strip()}" has expired.')
+          continue
+        result_set.add(result)
+      elif IsExpLine(line):
+        result_set.current_exp = _EXP_LINE_REX.match(line).groups()[0]
+        if _OPTIONS.srcpath_regex and _OPTIONS.srcpath_regex != '':
+          result_set.current_exp = re.sub(_OPTIONS.srcpath_regex, '',
+                                          result_set.current_exp)
+        result_set.testsuites.add((result_set.current_tool,
+                                   result_set.current_exp))
+      elif IsToolLine(line):
+        result_set.current_tool = _TOOL_LINE_REX.match(line).groups()[0]
+        result_set.current_exp = None
+      elif IsSummaryLine(line):
+        result_set.ResetToolExp()
   return result_set
 
 
@@ -440,15 +430,14 @@ def CollectSumFiles(builddir):
     for ignored in ('.svn', '.git'):
       if ignored in dirs:
         dirs.remove(ignored)
-    for fname in files:
-      if fname.endswith('.sum'):
-        sum_files.append(os.path.join(root, fname))
+    sum_files.extend(
+        os.path.join(root, fname) for fname in files if fname.endswith('.sum'))
   return sum_files
 
 
 def GetResults(sum_files, build_results = None):
   """Collect all the test results from the given .sum files."""
-  if build_results == None:
+  if build_results is None:
     build_results = ResultSet()
   for sum_fname in sum_files:
     if _OPTIONS.verbosity >= 3:
@@ -490,10 +479,9 @@ def CompareResults(manifest, actual):
 
 def GetManifestPath(user_provided_must_exist):
   """Return the full path to the manifest file."""
-  manifest_path = _OPTIONS.manifest
-  if manifest_path:
+  if manifest_path := _OPTIONS.manifest:
     if user_provided_must_exist and not os.path.exists(manifest_path):
-      Error('Manifest does not exist: %s' % manifest_path)
+      Error(f'Manifest does not exist: {manifest_path}')
     return manifest_path
   else:
     (srcdir, target) = GetBuildData()
@@ -518,11 +506,11 @@ def GetBuildData():
             _OPTIONS.build_dir)
     else:
       return None, None
-  srcdir = GetMakefileValue('%s/Makefile' % _OPTIONS.build_dir, 'srcdir =')
-  target = GetMakefileValue('%s/Makefile' % _OPTIONS.build_dir, 'target_alias=')
+  srcdir = GetMakefileValue(f'{_OPTIONS.build_dir}/Makefile', 'srcdir =')
+  target = GetMakefileValue(f'{_OPTIONS.build_dir}/Makefile', 'target_alias=')
   if _OPTIONS.verbosity >= 3:
-    print('Source directory: %s' % srcdir)
-    print('Build target:     %s' % target)
+    print(f'Source directory: {srcdir}')
+    print(f'Build target:     {target}')
   return srcdir, target
 
 
@@ -532,13 +520,12 @@ def PrintSummary(summary):
 def GetSumFiles(results, build_dir):
   if not results:
     if _OPTIONS.verbosity >= 3:
-      print('Getting actual results from build directory %s' % build_dir)
-    sum_files = CollectSumFiles(build_dir)
+      print(f'Getting actual results from build directory {build_dir}')
+    return CollectSumFiles(build_dir)
   else:
     if _OPTIONS.verbosity >= 3:
       print('Getting actual results from user-provided results')
-    sum_files = results.split()
-  return sum_files
+    return results.split()
 
 
 def PerformComparison(expected, actual):
@@ -575,7 +562,7 @@ def PerformComparison(expected, actual):
 def CheckExpectedResults():
   manifest_path = GetManifestPath(True)
   if _OPTIONS.verbosity >= 3:
-    print('Manifest:         %s' % manifest_path)
+    print(f'Manifest:         {manifest_path}')
   manifest = GetManifest(manifest_path)
   sum_files = GetSumFiles(_OPTIONS.results, _OPTIONS.build_dir)
   actual = GetResults(sum_files)
@@ -592,18 +579,16 @@ def CheckExpectedResults():
 def ProduceManifest():
   manifest_path = GetManifestPath(False)
   if _OPTIONS.verbosity >= 3:
-    print('Manifest:         %s' % manifest_path)
+    print(f'Manifest:         {manifest_path}')
   if os.path.exists(manifest_path) and not _OPTIONS.force:
     Error('Manifest file %s already exists.\nUse --force to overwrite.' %
           manifest_path)
 
   sum_files = GetSumFiles(_OPTIONS.results, _OPTIONS.build_dir)
   actual = GetResults(sum_files)
-  manifest_file = open(manifest_path, encoding='latin-1', mode='w')
-  actual.Print(manifest_file)
-  actual.Print()
-  manifest_file.close()
-
+  with open(manifest_path, encoding='latin-1', mode='w') as manifest_file:
+    actual.Print(manifest_file)
+    actual.Print()
   return True
 
 
@@ -616,7 +601,7 @@ def CompareBuilds():
   if _OPTIONS.manifest:
     manifest_path = GetManifestPath(True)
     if _OPTIONS.verbosity >= 3:
-      print('Manifest:         %s' % manifest_path)
+      print(f'Manifest:         {manifest_path}')
     clean = GetManifest(manifest_path)
 
   clean_sum_files = GetSumFiles(_OPTIONS.results, _OPTIONS.clean_build)
@@ -699,9 +684,9 @@ def Main(argv):
     if not today_date:
         Error('Invalid --expiry_today_date format "%s".  Must be of the form '
               '"expire=YYYYMMDD"' % _OPTIONS.expiry_today_date)
-    _OPTIONS.expiry_today_date=datetime.date(int(today_date.group(1)),
-                                             int(today_date.group(2)),
-                                             int(today_date.group(3)))
+    _OPTIONS.expiry_today_date = datetime.date(int(today_date[1]),
+                                               int(today_date[2]),
+                                               int(today_date[3]))
   else:
     _OPTIONS.expiry_today_date = datetime.date.today()
 
@@ -712,10 +697,7 @@ def Main(argv):
   else:
     retval = CheckExpectedResults()
 
-  if retval:
-    return 0
-  else:
-    return 2
+  return 0 if retval else 2
 
 
 if __name__ == '__main__':

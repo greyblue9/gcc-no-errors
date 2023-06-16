@@ -42,13 +42,12 @@ def import_pip3(*args):
             names=[names]
         for name in names:
             globals()[name]=getattr(lib, name)
-    if len(missing) > 0:
+    if missing:
         missing_and_sep = ' and '.join(missing)
         missing_space_sep = ' '.join(missing)
-        print('%s %s missing (run: pip3 install %s)'
-              % (missing_and_sep,
-                 ("module is" if len(missing) == 1 else "modules are"),
-                 missing_space_sep))
+        print(
+            f'{missing_and_sep} {"module is" if len(missing) == 1 else "modules are"} missing (run: pip3 install {missing_space_sep})'
+        )
         exit(3)
 
 import_pip3(('termcolor', 'colored'),
@@ -281,8 +280,8 @@ def check_GNU_style_file(file, format):
         if 'testsuite' in t or t.endswith('.py'):
             continue
 
+        delta = 0
         for hunk in pfile:
-            delta = 0
             for line in hunk:
                 if line.is_added and line.target_line_no != None:
                     for check in checks:
@@ -291,29 +290,27 @@ def check_GNU_style_file(file, format):
                         if e != None:
                             errors.append(e)
 
-    if format == 'stdio':
+    if format == 'quickfix':
+        f = 'errors.err'
+        with open(f, 'w+') as qf:
+            for e in errors:
+                qf.write('%s%s\n' % (e.error_location(), e.error_message))
+        if errors:
+            print('%d error(s) written to %s file.' % (len(errors), f))
+            exit(1)
+        else:
+            exit(0)
+    elif format == 'stdio':
         fn = lambda x: x.error_message
-        i = 1
-        for (k, errors) in groupby(sorted(errors, key = fn), fn):
+        for i, (k, errors) in enumerate(groupby(sorted(errors, key = fn), fn), start=1):
             errors = list(errors)
             print('=== ERROR type #%d: %s (%d error(s)) ==='
                 % (i, k, len(errors)))
-            i += 1
             for e in errors:
                 print(e.error_location () + e.console_error)
             print()
 
         exit(0 if len(errors) == 0 else 1)
-    elif format == 'quickfix':
-        f = 'errors.err'
-        with open(f, 'w+') as qf:
-            for e in errors:
-                qf.write('%s%s\n' % (e.error_location(), e.error_message))
-        if len(errors) == 0:
-            exit(0)
-        else:
-            print('%d error(s) written to %s file.' % (len(errors), f))
-            exit(1)
     else:
         assert False
 

@@ -51,7 +51,7 @@ def dbg(args):
 
 def get_symbols(file):
     syms = {}
-    rargs = "readelf -W -s %s %s" % (sym_args, file)
+    rargs = f"readelf -W -s {sym_args} {file}"
     p0 = Popen((a for a in rargs.split(' ') if a.strip() != ''), stdout=PIPE)
     p1 = Popen(["c++filt"], stdin=p0.stdout, stdout=PIPE,
             universal_newlines=True)
@@ -62,7 +62,7 @@ def get_symbols(file):
         larr = l.split()
         if len(larr) != 8: continue
         num, value, size, typ, bind, vis, ndx, name = larr
-        if typ == 'SECTION' or typ == 'FILE': continue
+        if typ in ['SECTION', 'FILE']: continue
         # I don't think we have many aliases in gcc, re-instate the addr
         # lut otherwise.
         if vis != 'DEFAULT': continue
@@ -73,7 +73,7 @@ def get_symbols(file):
         # c++ RID_FUNCTION_NAME dance. FORNOW: Handled as local use
         # Is that correct?
         if name.endswith('::__FUNCTION__') and typ == 'OBJECT':
-            name = name[0:(len(name) - len('::__FUNCTION__'))]
+            name = name[:len(name) - len('::__FUNCTION__')]
             if defined: defined = False
         if defined and not globl: continue
         syms.setdefault(name, {})
@@ -91,7 +91,7 @@ def get_symbols(file):
 
 def walker(paths):
     def ar_x(archive):
-        dbg("Archive %s" % path)
+        dbg(f"Archive {path}")
         f = os.path.abspath(archive)
         f = os.path.splitdrive(f)[1]
         d = tmpd + os.path.sep + f
@@ -100,35 +100,40 @@ def walker(paths):
         try:
             os.makedirs(d)
             os.chdir(d)
-            p0 = Popen(["ar", "x", "%s" % os.path.join(owd, archive)],
-                    stderr=PIPE, universal_newlines=True)
+            p0 = Popen(
+                ["ar", "x", f"{os.path.join(owd, archive)}"],
+                stderr=PIPE,
+                universal_newlines=True,
+            )
             p0.communicate()
             if p0.returncode > 0: d = None # assume thin archive
         except:
-            dbg("ar x: Error: %s: %s" % (archive, sys.exc_info()[0]))
+            dbg(f"ar x: Error: {archive}: {sys.exc_info()[0]}")
             os.chdir(owd)
             raise
         os.chdir(owd)
-        if d: dbg("Extracted to %s" % (d))
+        if d:
+            dbg(f"Extracted to {d}")
         return (archive, d)
 
     def ar_t(archive):
         dbg("Thin archive, using existing files:")
         try:
-            p0 = Popen(["ar", "t", "%s" % archive], stdout=PIPE,
-                    universal_newlines=True)
+            p0 = Popen(["ar", "t", f"{archive}"], stdout=PIPE, universal_newlines=True)
             ret = p0.communicate()[0]
             return ret.split('\n')
         except:
-            dbg("ar t: Error: %s: %s" % (archive, sys.exc_info()[0]))
+            dbg(f"ar t: Error: {archive}: {sys.exc_info()[0]}")
             raise
 
     prog = {}
     for path in paths:
         if os.path.isdir(path):
             for r, dirs, files in os.walk(path):
-                if files: dbg("Files %s" % ", ".join(files))
-                if dirs: dbg("Dirs  %s" % ", ".join(dirs))
+                if files:
+                    dbg(f'Files {", ".join(files)}')
+                if dirs:
+                    dbg(f'Dirs  {", ".join(dirs)}')
                 prog.update(walker([os.path.join(r, f) for f in files]))
                 prog.update(walker([os.path.join(r, d) for d in dirs]))
         else:
@@ -136,7 +141,7 @@ def walker(paths):
                 if ar_x(path)[1] is not None: continue # extract worked
                 prog.update(walker(ar_t(path)))
             if not path.endswith('.o'): continue
-            dbg("Reading symbols from %s" % (path))
+            dbg(f"Reading symbols from {path}")
             prog[os.path.normpath(path)] = get_symbols(path)
     return prog
 
@@ -145,11 +150,13 @@ def resolve(prog):
     use = set()
     # for each unique pair of different files
     for (f, g) in ((f,g) for f in x for g in x if f != g):
-        refs = set()
-        # for each defined symbol
-        for s in (s for s in prog[f] if prog[f][s].get('def') and s in prog[g]):
-            if prog[g][s].get('use'):
-                refs.add(s)
+        refs = {
+            s
+            for s in (
+                s for s in prog[f] if prog[f][s].get('def') and s in prog[g]
+            )
+            if prog[g][s].get('use')
+        }
         for s in refs:
             # Prune externally referenced symbols as speed optimization only
             for i in (i for i in x if s in prog[i]): del prog[i][s]
@@ -163,16 +170,16 @@ try:
     oused = resolve(oprog)
 finally:
     try:
-        p0 = Popen(["rm", "-r", "-f", "%s" % (tmpd)], stderr=PIPE, stdout=PIPE)
+        p0 = Popen(["rm", "-r", "-f", f"{tmpd}"], stderr=PIPE, stdout=PIPE)
         p0.communicate()
-        if p0.returncode != 0: raise "rm '%s' didn't work out" % (tmpd)
+        if p0.returncode != 0:
+            raise f"rm '{tmpd}' didn't work out"
     except:
         from shutil import rmtree
         rmtree(tmpd, ignore_errors=True)
 
 for (i,s) in ((i,s) for i in oprog.keys() for s in oprog[i] if oprog[i][s]):
     if oprog[i][s].get('def') and not oprog[i][s].get('use'):
-        print("%s: Symbol '%s' declared extern but never referenced externally"
-            % (i,s))
+        print(f"{i}: Symbol '{s}' declared extern but never referenced externally")
 
 

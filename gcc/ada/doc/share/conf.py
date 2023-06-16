@@ -36,41 +36,38 @@ with open(gnatvsn_spec, 'r') as fd:
 
 # read copyright test from .rst file (used also for sanity-checking)
 def get_copyright():
-    return '2008-%s, Free Software Foundation' % time.strftime('%Y')
+    return f"2008-{time.strftime('%Y')}, Free Software Foundation"
 
 
 # get environment gnat version (used also for sanity-checking)
 def get_gnat_version():
-    m = re.search(r'Gnat_Static_Version_String : ' +
-                  r'constant String := "([^\(\)]+)\(.*\)?";',
-                  gnatvsn_content)
-    if m:
-        return m.group(1).strip()
-    else:
-        if texi_fsf and os.path.exists(basever):
-            return ''
+    if m := re.search(
+        r'Gnat_Static_Version_String : '
+        + r'constant String := "([^\(\)]+)\(.*\)?";',
+        gnatvsn_content,
+    ):
+        return m[1].strip()
+    if texi_fsf and os.path.exists(basever):
+        return ''
 
-        try:
-            with open(basever) as fd:
-                return fd.read()
-        except Exception:
-            pass
+    try:
+        with open(basever) as fd:
+            return fd.read()
+    except Exception:
+        pass
 
-    print('cannot find GNAT version in gnatvsn.ads or in ' + basever)
+    print(f'cannot find GNAT version in gnatvsn.ads or in {basever}')
     sys.exit(1)
 
 
 # get gnat build type from runtime
 def get_gnat_build_type():
-    m = re.search(r'Build_Type : constant Gnat_Build_Type := (.+);',
-                  gnatvsn_content)
-    if m:
-        return {'Gnatpro': 'PRO',
-                'FSF': 'FSF',
-                'GPL': 'GPL'}[m.group(1).strip()]
-    else:
-        print('cannot compute GNAT build type')
-        sys.exit(1)
+    if m := re.search(
+        r'Build_Type : constant Gnat_Build_Type := (.+);', gnatvsn_content
+    ):
+        return {'Gnatpro': 'PRO', 'FSF': 'FSF', 'GPL': 'GPL'}[m[1].strip()]
+    print('cannot compute GNAT build type')
+    sys.exit(1)
 
 
 # Enable Sphinx extensions
@@ -108,16 +105,16 @@ if doc_name is None:
     sys.exit(1)
 
 if doc_name not in DOCS:
-    print('%s is not a valid documentation name' % doc_name)
+    print(f'{doc_name} is not a valid documentation name')
     sys.exit(1)
 print('found... ' , doc_name)
 
 # Exclude sources that are not part of the current documentation
 exclude_patterns = []
 for d in os.listdir(root_source_dir):
-    if d not in ('share', doc_name, doc_name + '.rst'):
+    if d not in ('share', doc_name, f'{doc_name}.rst'):
         exclude_patterns.append(d)
-        print('ignoring %s' % d)
+        print(f'ignoring {d}')
 
 # Special condition for gnat_rm
 if doc_name == 'gnat_rm':
@@ -153,11 +150,10 @@ latex_additional_files = ['gnat.sty']
 # Add copyright info to file
 copyright_macros = {
     'date': time.strftime("%b %d, %Y"),
-    'edition': 'GNAT %s Edition' % 'Pro' if get_gnat_build_type() == 'PRO'
-               else 'GPL',
+    'edition': 'GNAT Pro Edition' if get_gnat_build_type() == 'PRO' else 'GPL',
     'name': 'GNU Ada',
     'tool': 'GNAT',
-    'version': version
+    'version': version,
 }
 
 # Send info to latex for building document
@@ -180,7 +176,8 @@ latex_elements = {
 latex_show_pagerefs = True
 # Define latex metadata
 latex_documents = [
-    (master_doc, '%s.tex' % doc_name, project, 'AdaCore', 'manual')]
+    (master_doc, f'{doc_name}.tex', project, 'AdaCore', 'manual')
+]
 # Define .txt files metadata
 texinfo_documents = [
     (master_doc, doc_name, project, 'AdaCore', doc_name, doc_name, '')]

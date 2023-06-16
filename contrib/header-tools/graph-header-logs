@@ -7,14 +7,14 @@ import re
 from headerutils import *
 
 header_roots = { }
-extra_edges = list()
+extra_edges = []
 verbose = False
 verbosity = 0
-nodes = list()
+nodes = []
 
-def unpretty (name):
+def unpretty(name):
   if name[-2:] == "_h":
-    name = name[:-2] + ".h"
+    name = f"{name[:-2]}.h"
   return name.replace("_", "-")
 
 def pretty_name (name):

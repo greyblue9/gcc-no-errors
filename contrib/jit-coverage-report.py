@@ -23,9 +23,8 @@ def parse_map_file(path):
     syms = []
     with open(path) as f:
         for line in f:
-            m = re.match('^\s+([a-z_]+);$', line)
-            if m:
-                syms.append(m.group(1))
+            if m := re.match('^\s+([a-z_]+);$', line):
+                syms.append(m[1])
     return syms
 
 def parse_test_case(path):
@@ -39,18 +38,16 @@ def parse_test_case(path):
                 yield m.group(1)
 
 def find_test_cases():
-    for path in glob.glob('gcc/testsuite/jit.dg/*.[ch]'):
-        yield path
+    yield from glob.glob('gcc/testsuite/jit.dg/*.[ch]')
 
 api_syms = parse_map_file('gcc/jit/libgccjit.map')
 
-syms_in_test_cases = {}
-for path in find_test_cases():
-    syms_in_test_cases[path] = list(parse_test_case(path))
-
+syms_in_test_cases = {
+    path: list(parse_test_case(path)) for path in find_test_cases()
+}
 uses = Counter()
 for sym in sorted(api_syms):
-    print('symbol: %s' % sym)
+    print(f'symbol: {sym}')
     uses[sym] = 0
     for path in syms_in_test_cases:
         count = syms_in_test_cases[path].count(sym)

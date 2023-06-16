@@ -48,7 +48,7 @@ args = parser.parse_args()
 ignored = {'logical-op-non-short-circuit'}
 params = {}
 
-for line in open(args.params_output).readlines():
+for line in open(args.params_output):
     if line.startswith(' ' * 2) and not line.startswith(' ' * 8):
         r = get_param_tuple(line)
         params[r[0]] = r[1]
@@ -86,7 +86,7 @@ missing = params_set - texi_set
 if len(missing):
     print('Missing:')
     for m in missing:
-        print('@item ' + m)
+        print(f'@item {m}')
         print(params[m])
         print()
     success = False

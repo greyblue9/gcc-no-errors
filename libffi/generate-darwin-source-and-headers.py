@@ -143,7 +143,7 @@ def move_file(src_dir, dst_dir, filename, file_suffix=None, prefix='', suffix=''
             out_filename = filename
         else:
             split_name = os.path.splitext(filename)
-            out_filename = "%s_%s%s" % (split_name[0], file_suffix, split_name[1])
+            out_filename = f"{split_name[0]}_{file_suffix}{split_name[1]}"
 
     with open(os.path.join(src_dir, filename)) as in_file:
         with open(os.path.join(dst_dir, out_filename), 'w') as out_file:
@@ -175,14 +175,16 @@ def copy_src_platform_files(platform):
 
 def build_target(platform, platform_headers):
     def xcrun_cmd(cmd):
-        return 'xcrun -sdk %s %s -arch %s' % (platform.sdk, cmd, platform.arch)
+        return f'xcrun -sdk {platform.sdk} {cmd} -arch {platform.arch}'
 
-    tag='%s-%s' % (platform.sdk, platform.arch)
-    build_dir = 'build_%s' % tag
+    tag = f'{platform.sdk}-{platform.arch}'
+    build_dir = f'build_{tag}'
     mkdir_p(build_dir)
-    env = dict(CC=xcrun_cmd('clang'),
-               LD=xcrun_cmd('ld'),
-               CFLAGS='%s -fembed-bitcode' % (platform.version_min))
+    env = dict(
+        CC=xcrun_cmd('clang'),
+        LD=xcrun_cmd('ld'),
+        CFLAGS=f'{platform.version_min} -fembed-bitcode',
+    )
     working_dir = os.getcwd()
     try:
         os.chdir(build_dir)

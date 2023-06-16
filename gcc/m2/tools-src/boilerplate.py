@@ -171,7 +171,7 @@ def add_stop(sentence):
         return None
     sentence = sentence.rstrip()
     if (len(sentence) > 0) and (sentence[-1] != '.'):
-        return sentence + '.'
+        return f'{sentence}.'
     return sentence
 
 
@@ -261,12 +261,13 @@ Library module defined by the International Standard
    Modula-2, Base Language.  BS ISO/IEC 10514-1:1996).
 """
 
-templates = {}
-templates['GPLv3'] = GPLv3
-templates['GPLv3x'] = GPLv3x
-templates['LGPLv3'] = LGPLv3
-templates['LGPLv2.1'] = LGPLv3
-templates['BSISO'] = BSISO
+templates = {
+    'GPLv3': GPLv3,
+    'GPLv3x': GPLv3x,
+    'LGPLv3': LGPLv3,
+    'LGPLv2.1': LGPLv3,
+    'BSISO': BSISO,
+}
 
 
 def write_template(fo, magic, start, end, dates, contribution, summary, lic):
@@ -275,7 +276,6 @@ def write_template(fo, magic, start, end, dates, contribution, summary, lic):
             # non gpl but freely distributed for the implementation of a
             # compiler
             text = templates[lic] % (dates)
-            text = text.rstrip()
         else:
             summary = summary.lstrip()
             contribution = contribution.lstrip()
@@ -285,7 +285,7 @@ def write_template(fo, magic, start, end, dates, contribution, summary, lic):
                 fo.write(magic)
                 fo.write('\n')
             text = templates[lic] % (summary, dates, contribution)
-            text = text.rstrip()
+        text = text.rstrip()
         if end is None:
             text = text.split('\n')
             for line in text:
@@ -313,10 +313,7 @@ def write_template(fo, magic, start, end, dates, contribution, summary, lic):
 
 def write_boiler_plate(fo, magic, start, end,
                        start_date, end_date, contribution, summary, gpl):
-    if start_date == end_date:
-        dates = start_date
-    else:
-        dates = '%s-%s' % (start_date, end_date)
+    dates = start_date if start_date == end_date else f'{start_date}-{end_date}'
     return write_template(fo, magic, start, end,
                           dates, contribution, summary, gpl)
 
@@ -324,10 +321,7 @@ def write_boiler_plate(fo, magic, start, end,
 def rewrite_file(f, magic, start, end, start_date, end_date,
                  contribution, summary, gpl, lines):
     text = ''.join(open(f).readlines()[lines:])
-    if output_name == '-':
-        fo = sys.stdout
-    else:
-        fo = open(f, 'w')
+    fo = sys.stdout if output_name == '-' else open(f, 'w')
     fo = write_boiler_plate(fo, magic, start, end,
                             start_date, end_date, contribution, summary, gpl)
     fo.write(text)
@@ -376,8 +370,7 @@ def handle_header(f, magic, start, end):
     if error_count == 0:
         now = datetime.datetime.now()
         if args.no:
-            print(f, 'suppressing change as requested: %s-%s %s'
-                  % (start_date, end_date, lic))
+            print(f, f'suppressing change as requested: {start_date}-{end_date} {lic}')
         else:
             if lic == 'BSISO':
                 # don't change the BS ISO license!
@@ -446,11 +439,11 @@ def visit_dir(startDir, ext, func):
             if (len(fname) > len(ext)) and (fname[-len(ext):] == ext):
                 fullpath = os.path.join(dirName, fname)
                 output_name = fullpath
-                if not (fullpath in seen_files):
+                if fullpath not in seen_files:
                     seen_files += [fullpath]
                     func(fullpath)
-            # Remove the first entry in the list of sub-directories
-            # if there are any sub-directories present
+                    # Remove the first entry in the list of sub-directories
+                    # if there are any sub-directories present
         if len(subdirList) > 0:
             del subdirList[0]
 
@@ -505,15 +498,12 @@ def handle_arguments():
     parser.add_argument('-N', '--no',
                         help='do not modify any file.',
                         action='store_true')
-    args = parser.parse_args()
-    return args
+    return parser.parse_args()
 
 
 def has_ext(name, ext):
     # has_ext return True if, name, ends with, ext.
-    if len(name) > len(ext):
-        return name[-len(ext):] == ext
-    return False
+    return name[-len(ext):] == ext if len(name) > len(ext) else False
 
 
 def single_file(name):

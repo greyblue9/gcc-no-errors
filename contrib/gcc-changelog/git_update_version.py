@@ -59,7 +59,7 @@ def prepend_to_changelog_files(repo, folder, git_commit, add_to_git):
         raise AssertionError()
     for entry, output in git_commit.to_changelog_entries(use_commit_ts=True):
         full_path = os.path.join(folder, entry, 'ChangeLog')
-        logging.info('writing to %s' % full_path)
+        logging.info(f'writing to {full_path}')
         if os.path.exists(full_path):
             with open(full_path) as f:
                 content = f.read()
@@ -117,8 +117,9 @@ def update_current_branch(ref_name):
         assert len(head.parents) <= 2
         if len(head.parents) == 2:
             head = head.parents[1]
-        commits = parse_git_revisions(args.git_path, '%s..%s'
-                                      % (commit.hexsha, head.hexsha), ref_name)
+        commits = parse_git_revisions(
+            args.git_path, f'{commit.hexsha}..{head.hexsha}', ref_name
+        )
         commits = [c for c in commits if c.info.hexsha not in IGNORED_COMMITS]
         for git_commit in reversed(commits):
             prepend_to_changelog_files(repo, args.git_path, git_commit,
@@ -129,7 +130,7 @@ def update_current_branch(ref_name):
                                  branch.name.split('/')[-1] + '.patch')
             with open(patch, 'w+') as f:
                 f.write(diff)
-            logging.info('branch diff written to %s' % patch)
+            logging.info(f'branch diff written to {patch}')
             repo.git.checkout(force=True)
         else:
             # update timestamp
@@ -162,7 +163,7 @@ else:
                 branch = repo.branches[name]
             else:
                 branch = repo.create_head(name, ref).set_tracking_branch(ref)
-            logging.info('=== Working on: %s ===' % branch)
+            logging.info(f'=== Working on: {branch} ===')
             branch.checkout()
             origin.pull(rebase=True)
             logging.info('branch pulled and checked out')

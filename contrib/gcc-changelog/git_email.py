@@ -107,7 +107,7 @@ Patch files must be in 'git format-patch' format.""")
 
 
 if __name__ == '__main__':
-    if len(sys.argv) == 2 and (sys.argv[1] == '-h' or sys.argv[1] == '--help'):
+    if len(sys.argv) == 2 and sys.argv[1] in ['-h', '--help']:
         show_help()
 
     if len(sys.argv) == 1:
@@ -125,10 +125,10 @@ if __name__ == '__main__':
                 success += 1
                 print('  OK')
                 for warning in email.warnings:
-                    print('  WARN: %s' % warning)
+                    print(f'  WARN: {warning}')
             else:
                 for error in email.errors:
-                    print('  ERR: %s' % error)
+                    print(f'  ERR: {error}')
 
         print()
         print('Successfully parsed: %d/%d' % (success, len(allfiles)))

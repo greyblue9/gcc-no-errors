@@ -17,10 +17,7 @@ def test_basics(gcov):
 
 def test_lines(gcov):
     lines = gcov['files'][0]['lines']
-    linesdict = {}
-    for line in lines:
-        linesdict[int(line['line_number'])] = line
-
+    linesdict = {int(line['line_number']): line for line in lines}
     assert linesdict[21]['function_name'] == 'main'
     assert linesdict[15]['function_name'] == '_ZZ4mainENKUlvE_clEv'
     assert (linesdict[12]['function_name']

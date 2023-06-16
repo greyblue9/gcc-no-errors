@@ -39,10 +39,10 @@ class Named:
         self.name = name
 
 class ToolRun (Named):
-    def __init__ (self, name):
+    def __init__(self, name):
         Named.__init__ (self, name)
         # The variations run for this tool, mapped by --target_board name.
-        self.variations = dict()
+        self.variations = {}
 
     # Return the VariationRun for variation NAME.
     def get_variation (self, name):
@@ -51,13 +51,13 @@ class ToolRun (Named):
         return self.variations[name]
 
 class VariationRun (Named):
-    def __init__ (self, name):
+    def __init__(self, name):
         Named.__init__ (self, name)
         # A segment of text before the harness runs start, describing which
         # baseboard files were loaded for the target.
         self.header = None
         # The harnesses run for this variation, mapped by filename.
-        self.harnesses = dict()
+        self.harnesses = {}
         # A list giving the number of times each type of result has
         # been seen.
         self.counts = []
@@ -69,11 +69,11 @@ class VariationRun (Named):
         return self.harnesses[name]
 
 class HarnessRun (Named):
-    def __init__ (self, name):
+    def __init__(self, name):
         Named.__init__ (self, name)
         # Segments of text that make up the harness run, mapped by a test-based
         # key that can be used to order them.
-        self.segments = dict()
+        self.segments = {}
         # Segments of text that make up the harness run but which have
         # no recognized test results.  These are typically harnesses that
         # are completely skipped for the target.
@@ -103,7 +103,7 @@ class Segment:
         self.lines = 0
 
 class Prog:
-    def __init__ (self):
+    def __init__(self):
         # The variations specified on the command line.
         self.variations = []
         # The variations seen in the input files.
@@ -147,12 +147,14 @@ class Prog:
             '# of paths in test names\t',
             '# of duplicate test names\t'
         ]
-        self.runs = dict()
+        self.runs = {}
 
-    def usage (self):
+    def usage(self):
         name = sys.argv[0]
-        sys.stderr.write ('Usage: ' + name
-                          + ''' [-t tool] [-l variant-list] [-L] log-or-sum-file ...
+        sys.stderr.write(
+            (
+                f'Usage: {name}'
+                + ''' [-t tool] [-l variant-list] [-L] log-or-sum-file ...
 
     tool           The tool (e.g. g++, libffi) for which to create a
                    new test summary file.  If not specified then output
@@ -165,13 +167,15 @@ class Prog:
     If -L is used, merge *.log files instead of *.sum.  In this
     mode the exact order of lines may not be preserved, just different
     Running *.exp chunks should be in correct order.
-''')
+'''
+            )
+        )
         sys.exit (1)
 
-    def fatal (self, what, string):
+    def fatal(self, what, string):
         if not what:
             what = sys.argv[0]
-        sys.stderr.write (what + ': ' + string + '\n')
+        sys.stderr.write(f'{what}: {string}' + '\n')
         sys.exit (1)
 
     # Parse the command-line arguments.
@@ -199,15 +203,15 @@ class Prog:
             return datetime.now()
 
     # Parse an integer and abort on failure.
-    def parse_int (self, filename, value):
+    def parse_int(self, filename, value):
         try:
             return int (value)
         except ValueError:
-            self.fatal (filename, 'expected an integer, got: ' + value)
+            self.fatal(filename, f'expected an integer, got: {value}')
 
     # Return a list that represents no test results.
-    def zero_counts (self):
-        return [0 for x in self.count_names]
+    def zero_counts(self):
+        return [0 for _ in self.count_names]
 
     # Return the ToolRun for tool NAME.
     def get_tool (self, name):
@@ -236,7 +240,7 @@ class Prog:
 
     # Parse from the first line after 'Running target ...' to the end
     # of the run's summary.
-    def parse_run (self, filename, file, tool, variation, num_variations):
+    def parse_run(self, filename, file, tool, variation, num_variations):
         header = None
         harness = None
         segment = None
@@ -294,7 +298,7 @@ class Prog:
                 name = match.group (2)
                 # Ugly hack to get the right order for gfortran.
                 if name.startswith ('gfortran.dg/g77/'):
-                    name = 'h' + name
+                    name = f'h{name}'
                 # If we have a time out warning, make sure it appears
                 # before the following testcase diagnostic: we insert
                 # the testname before 'program' so that sort faces a
@@ -352,7 +356,7 @@ class Prog:
                     found = True
                     break
             if not found:
-                self.fatal (filename, 'unknown test result: ' + line[:-1])
+                self.fatal(filename, f'unknown test result: {line[:-1]}')
 
     # Parse an acats run, which uses a different format from dejagnu.
     # We have just skipped over '=== acats configuration ==='.
@@ -402,7 +406,7 @@ class Prog:
                 break
 
     # Parse a .log or .sum file.
-    def parse_file (self, filename, file):
+    def parse_file(self, filename, file):
         tool = None
         target = None
         num_variations = 1
@@ -423,7 +427,7 @@ class Prog:
                 if not tool:
                     self.fatal (filename, 'could not parse tool name')
                 if name not in self.known_variations:
-                    self.fatal (filename, 'unknown target: ' + name)
+                    self.fatal(filename, f'unknown target: {name}')
                 self.parse_run (filename, file, tool,
                                 tool.get_variation (name),
                                 num_variations)
@@ -433,10 +437,7 @@ class Prog:
                     self.parse_final_summary (filename, file)
                 continue
 
-            # Parse the start line.  In the case where several files are being
-            # parsed, pick the one with the earliest time.
-            match = self.test_run_re.match (line)
-            if match:
+            if match := self.test_run_re.match(line):
                 time = self.parse_time (match.group (2))
                 if not self.start_line or self.start_line[0] > time:
                     self.start_line = (time, line)
@@ -462,9 +463,7 @@ class Prog:
                 self.parse_acats_run (filename, file)
                 continue
 
-            # Parse the tool name.
-            match = self.tool_re.match (line)
-            if match:
+            if match := self.tool_re.match(line):
                 tool = self.get_tool (match.group (1))
                 continue
 
@@ -476,10 +475,7 @@ class Prog:
                 self.parse_final_summary (filename, file)
                 continue
 
-            # Parse the completion line.  In the case where several files
-            # are being parsed, pick the one with the latest time.
-            match = self.completed_re.match (line)
-            if match:
+            if match := self.completed_re.match(line):
                 time = self.parse_time (match.group (1))
                 if not self.end_line or self.end_line[0] < time:
                     self.end_line = (time, line)
@@ -488,13 +484,13 @@ class Prog:
             # Sanity check to make sure that important text doesn't get
             # dropped accidentally.
             if strict and line.strip() != '':
-                self.fatal (filename, 'unrecognised line: ' + line[:-1])
+                self.fatal(filename, f'unrecognised line: {line[:-1]}')
 
     # Output a segment of text.
-    def output_segment (self, segment):
+    def output_segment(self, segment):
         with safe_open (segment.filename) as file:
             file.seek (segment.start)
-            for i in range (segment.lines):
+            for _ in range (segment.lines):
                 sys.stdout.write (file.readline())
 
     # Output a summary giving the number of times each type of result has
@@ -511,11 +507,11 @@ class Prog:
 
     # Output unified .log or .sum information for a particular variation,
     # with a summary at the end.
-    def output_variation (self, tool, variation):
+    def output_variation(self, tool, variation):
         self.output_segment (variation.header)
         for harness in sorted (variation.harnesses.values(),
                                key = attrgetter ('name')):
-            sys.stdout.write ('Running ' + harness.name + ' ...\n')
+            sys.stdout.write(f'Running {harness.name}' + ' ...\n')
             if self.do_sum:
                 harness.results.sort()
                 for (key, line) in harness.results:
@@ -534,7 +530,7 @@ class Prog:
 
     # Output unified .log or .sum information for a particular tool,
     # with a summary at the end.
-    def output_tool (self, tool):
+    def output_tool(self, tool):
         counts = self.zero_counts()
         if tool.name == 'acats':
             # acats doesn't use variations, so just output everything.
@@ -550,7 +546,7 @@ class Prog:
                               'Schedule of variations:\n')
             for name in self.variations:
                 if name in tool.variations:
-                    sys.stdout.write ('    ' + name + '\n')
+                    sys.stdout.write(f'    {name}' + '\n')
             sys.stdout.write ('\n')
             for name in self.variations:
                 if name in tool.variations:
@@ -562,7 +558,7 @@ class Prog:
             sys.stdout.write ('\n\t\t=== ' + tool.name + ' Summary ===\n\n')
         self.output_summary (tool, counts)
 
-    def main (self):
+    def main(self):
         self.parse_cmdline()
         try:
             # Parse the input files.
@@ -576,7 +572,7 @@ class Prog:
             else:
                 for name in self.variations:
                     if name not in self.known_variations:
-                        self.fatal (None, 'no results for ' + name)
+                        self.fatal(None, f'no results for {name}')
             if len (self.tools) == 0:
                 self.tools = sorted (self.runs.keys())
 
@@ -591,7 +587,7 @@ class Prog:
             # Output the main body.
             for name in self.tools:
                 if name not in self.runs:
-                    self.fatal (None, 'no results for ' + name)
+                    self.fatal(None, f'no results for {name}')
                 self.output_tool (self.runs[name])
 
             # Output the footer.

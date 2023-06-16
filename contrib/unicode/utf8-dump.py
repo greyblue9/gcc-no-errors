@@ -37,9 +37,7 @@ def get_name(ch):
     try:
         return unicodedata.name(ch)
     except ValueError:
-        if ch == '\n':
-            return 'LINE FEED (LF)'
-        return '(unknown)'
+        return 'LINE FEED (LF)' if ch == '\n' else '(unknown)'
 
 
 def get_printable(ch):
@@ -54,15 +52,13 @@ def get_printable(ch):
 
 
 def dump_file(f_in):
-    line_num = 1
-    for line in f_in:
+    for line_num, line in enumerate(f_in, start=1):
         print('%4i | %s' % (line_num, line.rstrip()))
         for ch in line:
             utf8_desc = '%15s' % (' '.join(['0x%02x' % b
                                             for b in ch.encode('utf-8')]))
             print('%4s |   U+%04X %s %40s %s'
                   % ('', ord(ch), utf8_desc, get_name(ch), get_printable(ch)))
-        line_num += 1
 
 
 with open(sys.argv[1], mode='r') as f_in:

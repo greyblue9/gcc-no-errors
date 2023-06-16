@@ -51,9 +51,9 @@ class Errors:
     def __init__ (self):
         self.num_errors = 0
 
-    def report (self, filename, string):
+    def report(self, filename, string):
         if filename:
-            string = filename + ': ' + string
+            string = f'{filename}: {string}'
         sys.stderr.write (string + '\n')
         self.num_errors += 1
 
@@ -61,68 +61,54 @@ class Errors:
         return self.num_errors == 0
 
 class GenericFilter:
-    def __init__ (self):
+    def __init__(self):
         self.skip_files = set()
         self.skip_dirs = set()
-        self.skip_extensions = set([
-                '.png',
-                '.pyc',
-                ])
+        self.skip_extensions = {'.png', '.pyc'}
         self.fossilised_files = set()
         self.own_files = set()
 
-        self.skip_files |= set ([
-                # Skip licence files.
-                'COPYING',
-                'COPYING.LIB',
-                'COPYING3',
-                'COPYING3.LIB',
-                'LICENSE',
-                'LICENSE.txt',
-                'fdl.texi',
-                'gpl_v3.texi',
-                'fdl-1.3.xml',
-                'gpl-3.0.xml',
-
-                # Skip auto- and libtool-related files
-                'aclocal.m4',
-                'compile',
-                'config.guess',
-                'config.sub',
-                'depcomp',
-                'install-sh',
-                'libtool.m4',
-                'ltmain.sh',
-                'ltoptions.m4',
-                'ltsugar.m4',
-                'ltversion.m4',
-                'lt~obsolete.m4',
-                'missing',
-                'mkdep',
-                'mkinstalldirs',
-                'move-if-change',
-                'shlibpath.m4',
-                'symlink-tree',
-                'ylwrap',
-
-                # Skip FSF mission statement, etc.
-                'gnu.texi',
-                'funding.texi',
-                'appendix_free.xml',
-
-                # Skip imported texinfo files.
-                'texinfo.tex',
-                ])
+        self.skip_files |= {
+            'COPYING',
+            'COPYING.LIB',
+            'COPYING3',
+            'COPYING3.LIB',
+            'LICENSE',
+            'LICENSE.txt',
+            'fdl.texi',
+            'gpl_v3.texi',
+            'fdl-1.3.xml',
+            'gpl-3.0.xml',
+            'aclocal.m4',
+            'compile',
+            'config.guess',
+            'config.sub',
+            'depcomp',
+            'install-sh',
+            'libtool.m4',
+            'ltmain.sh',
+            'ltoptions.m4',
+            'ltsugar.m4',
+            'ltversion.m4',
+            'lt~obsolete.m4',
+            'missing',
+            'mkdep',
+            'mkinstalldirs',
+            'move-if-change',
+            'shlibpath.m4',
+            'symlink-tree',
+            'ylwrap',
+            'gnu.texi',
+            'funding.texi',
+            'appendix_free.xml',
+            'texinfo.tex',
+        }
 
 
-    def get_line_filter (self, dir, filename):
-        if filename.startswith ('ChangeLog'):
-            # Ignore references to copyright in changelog entries.
-            return re.compile ('\t')
+    def get_line_filter(self, dir, filename):
+        return re.compile ('\t') if filename.startswith ('ChangeLog') else None
 
-        return None
-
-    def skip_file (self, dir, filename):
+    def skip_file(self, dir, filename):
         if filename in self.skip_files:
             return True
 
@@ -132,19 +118,18 @@ class GenericFilter:
 
         if extension == '.in':
             # Skip .in files produced by automake.
-            if os.path.exists (base + '.am'):
+            if os.path.exists(f'{base}.am'):
                 return True
 
             # Skip files produced by autogen
-            if (os.path.exists (base + '.def')
-                and os.path.exists (base + '.tpl')):
+            if os.path.exists(f'{base}.def') and os.path.exists(f'{base}.tpl'):
                 return True
 
         # Skip configure files produced by autoconf
         if filename == 'configure':
-            if os.path.exists (base + '.ac'):
+            if os.path.exists(f'{base}.ac'):
                 return True
-            if os.path.exists (base + '.in'):
+            if os.path.exists(f'{base}.in'):
                 return True
 
         return False
@@ -152,19 +137,17 @@ class GenericFilter:
     def skip_dir (self, dir, subdir):
         return subdir in self.skip_dirs
 
-    def is_fossilised_file (self, dir, filename):
+    def is_fossilised_file(self, dir, filename):
         if filename in self.fossilised_files:
             return True
         # Only touch current current ChangeLogs.
-        if filename != 'ChangeLog' and filename.find ('ChangeLog') >= 0:
-            return True
-        return False
+        return filename != 'ChangeLog' and filename.find ('ChangeLog') >= 0
 
     def by_package_author (self, dir, filename):
         return filename in self.own_files
 
 class Copyright:
-    def __init__ (self, errors):
+    def __init__(self, errors):
         self.errors = errors
 
         # Characters in a range of years.  Include '.' for typos.
@@ -177,7 +160,7 @@ class Copyright:
         self.year_re = re.compile ('[0-9]+')
 
         # Matches part of a year or copyright holder.
-        self.continuation_re = re.compile (ranges + '|' + name)
+        self.continuation_re = re.compile(f'{ranges}|{name}')
 
         # Matches a full copyright notice:
         self.copyright_re = re.compile (
@@ -237,8 +220,8 @@ class Copyright:
         def __init__ (self, year):
             self.year = year
 
-        def __str__ (self):
-            return 'unrecognised year: ' + self.year
+        def __str__(self):
+            return f'unrecognised year: {self.year}'
 
     def parse_year (self, string):
         year = int (string)
@@ -249,10 +232,10 @@ class Copyright:
             return year
         raise self.BadYear (string)
 
-    def year_range (self, years):
+    def year_range(self, years):
         year_list = [self.parse_year (year)
                      for year in self.year_re.findall (years)]
-        assert len (year_list) > 0
+        assert year_list
         return (min (year_list), max (year_list))
 
     def set_use_quilt (self, use_quilt):
@@ -279,10 +262,9 @@ class Copyright:
         else:
             return '%d-%d' % (min_year, max_year)
 
-    def strip_continuation (self, line):
+    def strip_continuation(self, line):
         line = line.lstrip()
-        match = self.comment_re.match (line)
-        if match:
+        if match := self.comment_re.match(line):
             line = line[match.end():].lstrip()
         return line
 
@@ -292,9 +274,9 @@ class Copyright:
                 and (holder not in self.holder_prefixes
                      or holder in self.holders))
 
-    def update_copyright (self, dir, filename, filter, file, line, match):
-        orig_line = line
+    def update_copyright(self, dir, filename, filter, file, line, match):
         next_line = None
+        orig_line = line
         pathname = os.path.join (dir, filename)
 
         intro = match.group (1)
@@ -302,9 +284,7 @@ class Copyright:
             # Texinfo year variables should always be on one line
             after_years = line[match.end (2):].strip()
             if after_years != '':
-                self.errors.report (pathname,
-                                    'trailing characters in @set: '
-                                    + after_years)
+                self.errors.report(pathname, f'trailing characters in @set: {after_years}')
                 return (False, orig_line, next_line)
         else:
             # If it looks like the copyright is incomplete, add the next line.
@@ -322,7 +302,7 @@ class Copyright:
 
                 # Merge the lines for matching purposes.
                 orig_line += next_line
-                line = line.rstrip() + ' ' + continuation
+                line = f'{line.rstrip()} {continuation}'
                 next_line = None
 
                 # Rematch with the longer line, at the original position.
@@ -340,8 +320,7 @@ class Copyright:
                 return (False, orig_line, next_line)
 
             elif holder not in self.holders:
-                self.errors.report (pathname,
-                                    'unrecognised copyright holder: ' + holder)
+                self.errors.report(pathname, f'unrecognised copyright holder: {holder}')
                 return (False, orig_line, next_line)
 
             else:
@@ -376,7 +355,7 @@ class Copyright:
         if intro.endswith ('right'):
             intro += ' (C)'
         elif intro.endswith ('(c)'):
-            intro = intro[:-3] + '(C)'
+            intro = f'{intro[:-3]}(C)'
         line = line[:match.start (1)] + intro + line[match.end (1):]
 
         # Strip trailing whitespace
@@ -393,7 +372,7 @@ class Copyright:
                 pass
         return None
 
-    def process_file (self, dir, filename, filter):
+    def process_file(self, dir, filename, filter):
         pathname = os.path.join (dir, filename)
         if filename.endswith ('.tmp'):
             # Looks like something we tried to create before.
@@ -416,24 +395,20 @@ class Copyright:
                     next_line = None
                     # Leave filtered-out lines alone.
                     if not (line_filter and line_filter.match (line)):
-                        match = self.copyright_re.search (line)
-                        if match:
+                        if match := self.copyright_re.search(line):
                             res = self.update_copyright (dir, filename, filter,
                                                          file, line, match)
                             (this_changed, line, next_line) = res
                             changed = changed or this_changed
 
-                        # Check for copyright lines that might have slipped by.
                         elif self.other_copyright_re.search (line):
-                            self.errors.report (pathname,
-                                                'unrecognised copyright: %s'
-                                                % line.strip())
+                            self.errors.report(pathname, f'unrecognised copyright: {line.strip()}')
                     lines.append (line)
                     line = next_line
 
         # If something changed, write the new file out.
         if changed and self.errors.ok():
-            tmp_pathname = pathname + '.tmp'
+            tmp_pathname = f'{pathname}.tmp'
             with open (tmp_pathname, 'w', encoding=encoding) as file:
                 for line in lines:
                     file.write (line)
@@ -458,13 +433,13 @@ class Copyright:
                     self.process_file (dir, filename, filter)
 
 class CmdLine:
-    def __init__ (self, copyright = Copyright):
+    def __init__(self, copyright = Copyright):
         self.errors = Errors()
         self.copyright = copyright (self.errors)
         self.dirs = []
         self.default_dirs = []
         self.chosen_dirs = []
-        self.option_handlers = dict()
+        self.option_handlers = {}
         self.option_help = []
 
         self.add_option ('--help', 'Print this help', self.o_help)
@@ -480,7 +455,7 @@ class CmdLine:
     def add_dir (self, dir, filter = GenericFilter()):
         self.dirs.append ((dir, filter))
 
-    def o_help (self, option = None):
+    def o_help(self, option = None):
         sys.stdout.write ('Usage: %s [options] dir1 dir2...\n\n'
                           'Options:\n' % sys.argv[0])
         format = '%-15s %s\n'
@@ -489,9 +464,7 @@ class CmdLine:
         sys.stdout.write ('\nDirectories:\n')
 
         format = '%-25s'
-        i = 0
-        for (dir, filter) in self.dirs:
-            i += 1
+        for i, (dir, filter) in enumerate(self.dirs, start=1):
             if i % 3 == 0 or i == len (self.dirs):
                 sys.stdout.write (dir + '\n')
             else:
@@ -504,14 +477,14 @@ class CmdLine:
     def o_this_year (self, option):
         self.copyright.include_year (time.localtime().tm_year)
 
-    def main (self):
+    def main(self):
         for arg in sys.argv[1:]:
             if arg[:1] != '-':
                 self.chosen_dirs.append (arg)
             elif arg in self.option_handlers:
                 self.option_handlers[arg] (arg)
             else:
-                self.errors.report (None, 'unrecognised option: ' + arg)
+                self.errors.report(None, f'unrecognised option: {arg}')
         if self.errors.ok():
             if len (self.chosen_dirs) == 0:
                 self.chosen_dirs = self.default_dirs
@@ -550,55 +523,36 @@ class ConfigFilter (GenericFilter):
         return GenericFilter.skip_file (self, dir, filename)
 
 class GCCFilter (GenericFilter):
-    def __init__ (self):
+    def __init__(self):
         GenericFilter.__init__ (self)
 
-        self.skip_files |= set ([
-                # Not part of GCC
-                'math-68881.h',
-                ])
+        self.skip_files |= {'math-68881.h'}
 
-        self.skip_dirs |= set ([
-                # Better not create a merge nightmare for the GNAT folks.
-                'ada',
+        self.skip_dirs |= {'ada', 'testsuite'}
 
-                # Handled separately.
-                'testsuite',
-                ])
+        self.skip_extensions |= {'.po', '.pot'}
 
-        self.skip_extensions |= set ([
-                # Maintained by the translation project.
-                '.po',
-
-                # Automatically-generated.
-                '.pot',
-                ])
-
-        self.fossilised_files |= set ([
-                # Old news won't be updated.
-                'ONEWS',
-                ])
+        self.fossilised_files |= {'ONEWS'}
 
 class TestsuiteFilter (GenericFilter):
-    def __init__ (self):
+    def __init__(self):
         GenericFilter.__init__ (self)
 
-        self.skip_extensions |= set ([
-                # Don't change the tests, which could be woend by anyone.
-                '.c',
-                '.C',
-                '.cc',
-                '.d',
-                '.h',
-                '.hs',
-                '.f',
-                '.f90',
-                '.go',
-                '.inc',
-                '.java',
-                '.mod',
-                '.rs'
-                ])
+        self.skip_extensions |= {
+            '.c',
+            '.C',
+            '.cc',
+            '.d',
+            '.h',
+            '.hs',
+            '.f',
+            '.f90',
+            '.go',
+            '.inc',
+            '.java',
+            '.mod',
+            '.rs',
+        }
 
     def skip_file (self, dir, filename):
         # g++.niklas/README contains historical copyright information
@@ -613,70 +567,34 @@ class TestsuiteFilter (GenericFilter):
         return GenericFilter.skip_file (self, dir, filename)
 
 class LibCppFilter (GenericFilter):
-    def __init__ (self):
+    def __init__(self):
         GenericFilter.__init__ (self)
 
-        self.skip_extensions |= set ([
-                # Maintained by the translation project.
-                '.po',
-
-                # Automatically-generated.
-                '.pot',
-                ])
+        self.skip_extensions |= {'.po', '.pot'}
 
 class LibGCCFilter (GenericFilter):
-    def __init__ (self):
+    def __init__(self):
         GenericFilter.__init__ (self)
 
-        self.skip_dirs |= set ([
-                # Imported from GLIBC.
-                'soft-fp',
-                ])
+        self.skip_dirs |= {'soft-fp'}
 
 class LibPhobosFilter (GenericFilter):
-    def __init__ (self):
+    def __init__(self):
         GenericFilter.__init__ (self)
 
-        self.skip_files |= set ([
-                # Source modules imported from upstream.
-                'object.d',
-                '__builtins.di'
-                ])
+        self.skip_files |= {'object.d', '__builtins.di'}
 
-        self.skip_dirs |= set ([
-                # Contains sources imported from upstream.
-                'core',
-                'etc',
-                'gc',
-                'gcstub',
-                'rt',
-                'std',
-                ])
+        self.skip_dirs |= {'core', 'etc', 'gc', 'gcstub', 'rt', 'std'}
 
 class LibStdCxxFilter (GenericFilter):
-    def __init__ (self):
+    def __init__(self):
         GenericFilter.__init__ (self)
 
-        self.skip_files |= set ([
-                # Contains no copyright of its own, but quotes the GPL.
-                'intro.xml',
-                ])
+        self.skip_files |= {'intro.xml'}
 
-        self.skip_dirs |= set ([
-                # Contains automatically-generated sources.
-                'html',
+        self.skip_dirs |= {'html', 'data', 'images'}
 
-                # The testsuite data files shouldn't be changed.
-                'data',
-
-                # Contains imported images
-                'images',
-                ])
-
-        self.own_files |= set ([
-                # Contains markup around the copyright owner.
-                'spine.xml',
-                ])
+        self.own_files |= {'spine.xml'}
 
     def get_line_filter (self, dir, filename):
         if filename == 'boost_concept_check.h':
@@ -684,17 +602,15 @@ class LibStdCxxFilter (GenericFilter):
         return GenericFilter.get_line_filter (self, dir, filename)
 
 class ContribFilter(GenericFilter):
-    def __init__ (self):
+    def __init__(self):
         GenericFilter.__init__ (self)
 
-        self.skip_files |= set ([
-                # A different copyrights.
-                'unicode-license.txt',
-                'Info.plist',
-                # Contains CR (^M).
-                'repro_fail',
-                'test_patches.txt',
-                ])
+        self.skip_files |= {
+            'unicode-license.txt',
+            'Info.plist',
+            'repro_fail',
+            'test_patches.txt',
+        }
 
 class GCCCopyright (Copyright):
     def __init__ (self, errors):

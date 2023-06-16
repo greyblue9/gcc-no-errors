@@ -18,11 +18,9 @@ def find_pound_include (line, use_outside, use_slash):
         return nm
   return ""
 
-def find_system_include (line):
+def find_system_include(line):
   inc = re.findall (ur"^\s*#\s*include\s*<(.+?)>", line)
-  if len(inc) == 1:
-    return inc[0]
-  return ""
+  return inc[0] if len(inc) == 1 else ""
   
 def find_pound_define (line):
   inc = re.findall (ur"^\s*#\s*define ([A-Za-z0-9_]+)", line)
@@ -34,19 +32,14 @@ def find_pound_define (line):
     return inc[0];
   return ""
 
-def is_pound_if (line):
+def is_pound_if(line):
   inc = re.findall ("^\s*#\s*if\s", line)
   if not inc:
     inc = re.findall ("^\s*#\s*if[n]?def\s", line)
-  if inc:
-    return True
-  return False
+  return bool(inc)
 
-def is_pound_endif (line):
-  inc = re.findall ("^\s*#\s*endif", line)
-  if inc:
-    return True
-  return False
+def is_pound_endif(line):
+  return bool(inc := re.findall ("^\s*#\s*endif", line))
 
 def find_pound_if (line):
   inc = re.findall (ur"^\s*#\s*if\s+(.*)", line)
@@ -85,20 +78,18 @@ def find_pound_if (line):
 # [7] - line number info for any headers in the source file.  Indexed by base
 #       name, returning the line the include is on.
 
-empty_iinfo =  ("", "", list(), list(), list(), list(), list())
+empty_iinfo = "", "", [], [], [], [], []
 
 # This function will process a file and extract interesting information.
 # DO_MACROS indicates whether macros defined and used should be recorded.
 # KEEP_SRC indicates the source for the file should be cached.
-def process_include_info (filen, do_macros, keep_src):
+def process_include_info(filen, do_macros, keep_src):
   header = False
   if not os.path.exists (filen):
     return empty_iinfo
 
-  sfile = open (filen, "r");
-  data = sfile.readlines()
-  sfile.close()
-
+  with open (filen, "r") as sfile:
+    data = sfile.readlines()
   # Ignore the initial #ifdef HEADER_H in header files
   if filen[-2:] == ".h":
     nest = -1
@@ -106,14 +97,14 @@ def process_include_info (filen, do_macros, keep_src):
   else:
     nest = 0
 
-  macout = list ()
-  macin = list()
-  incl = list()
-  cond_incl = list()
+  macout = []
+  macin = []
+  incl = []
+  cond_incl = []
   src_line = { }
   guard = ""
 
-  for line in (data):
+  for line in data:
     if is_pound_if (line):
       nest += 1
     elif is_pound_endif (line):
@@ -129,27 +120,22 @@ def process_include_info (filen, do_macros, keep_src):
       continue
 
     if do_macros:
-      d = find_pound_define (line)
-      if d:
+      if d := find_pound_define(line):
         if d not in macout:
           macout.append (d);
           continue
 
-      d = find_pound_if (line)
-      if d:
+      if d := find_pound_if(line):
         # The first #if in a header file should be the guard
         if header and len (d) == 1 and guard == "":
-          if d[0][-2:] == "_H":
-            guard = d
-          else:
-            guard = "Guess there was no guard..."
+          guard = d if d[0][-2:] == "_H" else "Guess there was no guard..."
         else:
           for mac in d:
             if mac != "defined" and mac not in macin:
               macin.append (mac);
 
   if not keep_src:
-    data = list()
+    data = []
 
   return (os.path.basename (filen), os.path.dirname (filen), incl, cond_incl,
           macin, macout, data, src_line)
@@ -201,30 +187,25 @@ def ii_src (iinfo):
 def ii_src_line (iinfo):
   return iinfo[7]
 
-def ii_read (fname):
+def ii_read(fname):
   f = open (fname, 'rb')
   incl = pickle.load (f)
   consumes = pickle.load (f)
   defines = pickle.load (f)
-  obj = (fname,fname,incl,list(), list(), consumes, defines, list(), list())
-  return obj
+  return fname, fname, incl, [], [], consumes, defines, [], []
 
-def ii_write (fname, obj):
-  f = open (fname, 'wb')
-  pickle.dump (obj[2], f)
-  pickle.dump (obj[4], f)
-  pickle.dump (obj[5], f)
-  f.close ()
+def ii_write(fname, obj):
+  with open (fname, 'wb') as f:
+    pickle.dump (obj[2], f)
+    pickle.dump (obj[4], f)
+    pickle.dump (obj[5], f)
 
 # execute a system command which returns file names
-def execute_command (command):
-  files = list()
+def execute_command(command):
+  files = []
   f = os.popen (command)
   for x in f:
-    if x[0:2] == "./":
-      fn = x.rstrip()[2:]
-    else:
-      fn = x.rstrip()
+    fn = x.rstrip()[2:] if x[:2] == "./" else x.rstrip()
     files.append(fn)
   return files
 
@@ -259,26 +240,22 @@ def find_gcc_bld_dir (path):
 # DEEPER is True if you want to search 3 levels below the current directory
 # any files with testsuite diurectories are ignored
 
-def find_gcc_files (name, current, deeper):
-  files = list()
+def find_gcc_files(name, current, deeper):
   command = ""
   if current:
-    if not deeper:
-      command = "find -maxdepth 1 -name " + name + " -not -path \"./testsuite/*\""
-    else:
-      command = "find -maxdepth 4 -name " + name + " -not -path \"./testsuite/*\""
-  else:
-    if deeper:
-      command = "find -maxdepth 4 -mindepth 2 -name " + name + " -not -path \"./testsuite/*\""
+    command = (f"find -maxdepth 1 -name {name}" +
+               " -not -path \"./testsuite/*\""
+               if not deeper else f"find -maxdepth 4 -name {name}" +
+               " -not -path \"./testsuite/*\"")
+  elif deeper:
+    command = (f"find -maxdepth 4 -mindepth 2 -name {name}" +
+               " -not -path \"./testsuite/*\"")
 
-  if command != "":
-    files = execute_command (command)
-
-  return files
+  return execute_command (command) if command != "" else []
 
 # find the list of unique include names found in a file.
-def find_unique_include_list_src (data):
-  found = list ()
+def find_unique_include_list_src(data):
+  found = []
   for line in data:
     d = find_pound_include (line, True, True)
     if d and d not in found and d[-2:] == ".h":
@@ -298,14 +275,12 @@ def find_unique_include_list (filen):
 # returned as a tuple of the filename followed by the triplet of lists
 # (filen, macin, macout, incl)
 
-def create_macro_in_out (filen):
-  sfile = open (filen, "r");
-  data = sfile.readlines()
-  sfile.close()
-
-  macout = list ()
-  macin = list()
-  incl = list()
+def create_macro_in_out(filen):
+  with open (filen, "r") as sfile:
+    data = sfile.readlines()
+  macout = []
+  macin = []
+  incl = []
 
   for line in (data):
     d = find_pound_define (line)
@@ -329,35 +304,29 @@ def create_macro_in_out (filen):
 
 # create the macro information for filen, and create .macin, .macout, and .incl
 # files.  Return the created macro tuple.
-def create_include_data_files (filen):
+def create_include_data_files(filen):
 
   macros = create_macro_in_out (filen)
   depends = macros[1]
   defines = macros[2]
   incls = macros[3]
-  
+
   disp_message = filen
   if len (defines) > 0:
-    disp_message = disp_message + " " + str(len (defines)) + " #defines"
-  dfile = open (filen + ".macout", "w")
-  for x in defines:
-    dfile.write (x + "\n")
-  dfile.close ()
-
+    disp_message = f"{disp_message} {len(defines)} #defines"
+  with open(f"{filen}.macout", "w") as dfile:
+    for x in defines:
+      dfile.write (x + "\n")
   if len (depends) > 0:
-    disp_message = disp_message + " " + str(len (depends)) + " #if dependencies"
-  dfile = open (filen + ".macin", "w")
-  for x in depends:
-    dfile.write (x + "\n")
-  dfile.close ()
-
+    disp_message = f"{disp_message} {len(depends)} #if dependencies"
+  with open(f"{filen}.macin", "w") as dfile:
+    for x in depends:
+      dfile.write (x + "\n")
   if len (incls) > 0:
-    disp_message = disp_message + " " + str(len (incls)) + " #includes"
-  dfile = open (filen + ".incl", "w")
-  for x in incls:
-    dfile.write (x + "\n")
-  dfile.close ()
-
+    disp_message = f"{disp_message} {len(incls)} #includes"
+  with open(f"{filen}.incl", "w") as dfile:
+    for x in incls:
+      dfile.write (x + "\n")
   return macros
 
 
@@ -365,41 +334,40 @@ def create_include_data_files (filen):
 # extract data for include file name_h and enter it into the dictionary.
 # this does not change once read in.  use_requires is True if you want to 
 # prime the values with already created .requires and .provides files.
-def get_include_data (name_h, use_requires):
-  macin = list()
-  macout = list()
-  incl = list ()
-  if use_requires and os.path.exists (name_h + ".requires"):
-    macin = open (name_h + ".requires").read().splitlines()
-  elif os.path.exists (name_h + ".macin"):
-    macin = open (name_h + ".macin").read().splitlines()
+def get_include_data(name_h, use_requires):
+  macin = []
+  macout = []
+  incl = []
+  if use_requires and os.path.exists(f"{name_h}.requires"):
+    macin = open(f"{name_h}.requires").read().splitlines()
+  elif os.path.exists(f"{name_h}.macin"):
+    macin = open(f"{name_h}.macin").read().splitlines()
 
-  if use_requires and os.path.exists (name_h + ".provides"):
-    macout  = open (name_h + ".provides").read().splitlines()
-  elif os.path.exists (name_h + ".macout"):
-    macout  = open (name_h + ".macout").read().splitlines()
+  if use_requires and os.path.exists(f"{name_h}.provides"):
+    macout = open(f"{name_h}.provides").read().splitlines()
+  elif os.path.exists(f"{name_h}.macout"):
+    macout = open(f"{name_h}.macout").read().splitlines()
 
-  if os.path.exists (name_h + ".incl"):
-    incl = open (name_h + ".incl").read().splitlines()
+  if os.path.exists(f"{name_h}.incl"):
+    incl = open(f"{name_h}.incl").read().splitlines()
 
   if len(macin) == 0 and len(macout) == 0 and len(incl) == 0:
     return ()
-  data = ( name_h, macin, macout, incl )
-  return data
+  return name_h, macin, macout, incl
   
 # find FIND in src, and replace it with the list of headers in REPLACE.
 # Remove any duplicates of FIND in REPLACE, and if some of the REPLACE
 # headers occur earlier in the include chain, leave them.
 # Return the new SRC only if anything changed.
-def find_replace_include (find, replace, src):
-  res = list()
+def find_replace_include(find, replace, src):
+  res = []
   seen = { }
   anything = False
   for line in src:
     inc = find_pound_include (line, True, True)
     if inc == find:
       for y in replace:
-        if seen.get(y) == None:
+        if seen.get(y) is None:
           res.append("#include \""+y+"\"\n")
           seen[y] = True
           if y != find:
@@ -407,18 +375,14 @@ def find_replace_include (find, replace, src):
 # if find isnt in the replacement list, then we are deleting FIND, so changes.
       if find not in replace:
         anything = True
-    else:
-      if inc in replace:
-        if seen.get(inc) == None:
-          res.append (line)
-          seen[inc] = True
-      else:
+    elif inc in replace:
+      if seen.get(inc) is None:
         res.append (line)
+        seen[inc] = True
+    else:
+      res.append (line)
 
-  if (anything):
-    return res
-  else:
-    return list()
+  return res if anything else []
       
 
 # pass in a require and provide dictionary to be read in.
@@ -438,11 +402,10 @@ def read_require_provides (require, provide):
       provide [os.path.basename (f)] = list ()
 
    
-def build_include_list (filen):
-  include_files = list()
-  sfile = open (filen, "r")
-  data = sfile.readlines()
-  sfile.close()
+def build_include_list(filen):
+  include_files = []
+  with open (filen, "r") as sfile:
+    data = sfile.readlines()
   for line in data:
     nm = find_pound_include (line, False, False)
     if nm != "" and nm[-2:] == ".h":
@@ -450,11 +413,10 @@ def build_include_list (filen):
         include_files.append(nm)
   return include_files
  
-def build_reverse_include_list (filen):
-  include_files = list()
-  sfile = open (filen, "r")
-  data = sfile.readlines()
-  sfile.close()
+def build_reverse_include_list(filen):
+  include_files = []
+  with open (filen, "r") as sfile:
+    data = sfile.readlines()
   for line in reversed(data):
     nm = find_pound_include (line, False, False)
     if nm != "":
@@ -476,12 +438,12 @@ def get_make_rc (rc, output):
       rc = 1
   return rc;
 
-def get_make_output (build_dir, make_opt):
+def get_make_output(build_dir, make_opt):
   devnull = open('/dev/null', 'w')
   at_a_time = multiprocessing.cpu_count() * 2
-  make = "make -j"+str(at_a_time)+ " "
+  make = f"make -j{str(at_a_time)} "
   if build_dir != "":
-    command = "cd " + build_dir +"; " + make + make_opt
+    command = f"cd {build_dir}; {make}{make_opt}"
   else:
     command = make + make_opt
   process = subprocess.Popen(command, stdout=devnull, stderr=subprocess.PIPE, shell=True)
@@ -512,23 +474,23 @@ def spawn_makes (command_list):
         rc = ret;
   return rc
 
-def get_make_output_parallel (targ_list, make_opt, at_a_time):
-  command = list()
-  targname = list()
+def get_make_output_parallel(targ_list, make_opt, at_a_time):
+  command = []
+  targname = []
   if at_a_time == 0:
     at_a_time = multiprocessing.cpu_count() * 2
   proc_res = [0] * at_a_time
   for x in targ_list:
     if make_opt[-2:] == ".o":
-      s = "cd " + x[1] + "/gcc/; make " + make_opt
+      s = f"cd {x[1]}/gcc/; make {make_opt}"
     else:
-      s = "cd " + x[1] +"; make " + make_opt
+      s = f"cd {x[1]}; make {make_opt}"
     command.append ((x[0],s))
 
-  num = len(command) 
+  num = len(command)
   rc = (0,"", "")
   loops = num // at_a_time
-  
+
   if (loops > 0):
     for idx in range (loops):
       ret = spawn_makes (command[idx*at_a_time:(idx+1)*at_a_time])
@@ -546,9 +508,8 @@ def get_make_output_parallel (targ_list, make_opt, at_a_time):
   return rc
 
 
-def readwholefile (src_file):
-  sfile = open (src_file, "r")
-  src_data = sfile.readlines()
-  sfile.close()
+def readwholefile(src_file):
+  with open (src_file, "r") as sfile:
+    src_data = sfile.readlines()
   return src_data
 

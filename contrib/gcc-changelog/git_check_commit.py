@@ -38,19 +38,19 @@ args = parser.parse_args()
 retval = 0
 for git_commit in parse_git_revisions(args.git_path, args.revisions):
     res = 'OK' if git_commit.success else 'FAILED'
-    print('Checking %s: %s' % (git_commit.original_info.hexsha, res))
+    print(f'Checking {git_commit.original_info.hexsha}: {res}')
     if git_commit.success:
         if args.print_changelog:
             git_commit.print_output()
         if args.verbose and git_commit.warnings:
             for warning in git_commit.warnings:
-                print('WARN: %s' % warning)
+                print(f'WARN: {warning}')
     else:
         if args.verbose and git_commit.warnings:
             for warning in git_commit.warnings:
-                print('WARN: %s' % warning)
+                print(f'WARN: {warning}')
         for error in git_commit.errors:
-            print('ERR: %s' % error)
+            print(f'ERR: {error}')
             if args.verbose and error.details:
                 print(error.details)
         retval = 1

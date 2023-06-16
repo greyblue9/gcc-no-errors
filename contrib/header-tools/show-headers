@@ -10,12 +10,12 @@ from headerutils import *
 tabstop = 2
 padding = "                                                                  "
 seen = { }
-output = list()
-summary = list()
+output = []
+summary = []
 sawcore = False
 
 # list of headers to emphasize
-highlight = list ()
+highlight = []
 
 bld_dir = ""
 # search path for headers
@@ -23,22 +23,22 @@ incl_dirs = ["../include", "../libcpp/include", "common", "c-family", "c", "cp",
 # extra search paths to look in *after* the directory the source file is in. 
 
 # append (1) to the end of the first line which includes INC in list INC.
-def append_1 (output, inc):
+def append_1(output, inc):
   for n,t in enumerate (output):
     idx = t.find(inc)
     if idx != -1:
       eos = idx + len (inc)
-      t = t[:eos] + "  (1)" + t[eos+1:]
+      t = f"{t[:eos]}  (1){t[eos + 1:]}"
       output[n] = t
       return
 
 # These headers show up as duplicates in rtl.h due to conditional code arund the includes
 rtl_core = [ "machmode.h" , "signop.h" , "wide-int.h" , "double-int.h" , "real.h" , "fixed-value.h" , "statistics.h" , "vec.h" , "hash-table.h" , "hash-set.h" , "input.h" , "is-a.h" ]
 
-def find_include_data (inc):
+def find_include_data(inc):
   global sawcore
   for x in incl_dirs:
-    nm = x+"/"+inc
+    nm = f"{x}/{inc}"
     if os.path.exists (nm):
       info = find_unique_include_list (nm)
       # rtl.h mimics coretypes for GENERATOR FILES, remove if coretypes.h seen.
@@ -49,9 +49,9 @@ def find_include_data (inc):
           if i in info:
             info.remove (i)
       return info
-  return list()
+  return []
 
-def process_include (inc, indent):
+def process_include(inc, indent):
   if inc[-2:] != ".h":
     return
   bname  = os.path.basename (inc)
@@ -61,7 +61,7 @@ def process_include (inc, indent):
       summary.append (bname)
   else:
     arrow = ""
-  if seen.get(inc) == None:
+  if seen.get(inc) is None:
     seen[inc] = 1
     output.append (padding[:indent*tabstop] + bname + arrow)
     info = find_include_data (inc)

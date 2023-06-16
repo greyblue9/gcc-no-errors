@@ -37,7 +37,7 @@ def parse_git_revisions(repo_path, revisions, ref_name=None):
     def commit_to_info(commit):
         try:
             c = repo.commit(commit)
-            diff = repo.commit(commit + '~').diff(commit)
+            diff = repo.commit(f'{commit}~').diff(commit)
 
             modified_files = []
             for file in diff:
@@ -60,7 +60,7 @@ def parse_git_revisions(repo_path, revisions, ref_name=None):
                 modified_files.append((decode_path(file.b_path), t))
 
             date = datetime.utcfromtimestamp(c.committed_date)
-            author = '%s  <%s>' % (c.author.name, c.author.email)
+            author = f'{c.author.name}  <{c.author.email}>'
             git_info = GitInfo(c.hexsha, date, author,
                                c.message.split('\n'), modified_files)
             return git_info

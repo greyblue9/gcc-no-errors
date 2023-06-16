@@ -89,20 +89,16 @@ def find_changelog(path):
 def extract_function_name(line):
     if comment_regex.match(line):
         return None
-    m = struct_regex.search(line)
-    if m:
+    if m := struct_regex.search(line):
         # Struct declaration
-        return m.group(1) + ' ' + m.group(3)
-    m = macro_regex.search(line)
-    if m:
+        return f'{m.group(1)} {m.group(3)}'
+    if m := macro_regex.search(line):
         # Macro definition
         return m.group(2)
-    m = super_macro_regex.search(line)
-    if m:
+    if m := super_macro_regex.search(line):
         # Supermacro
         return m.group(1)
-    m = fn_regex.search(line)
-    if m:
+    if m := fn_regex.search(line):
         # Discard template and function parameters.
         fn = m.group(1)
         fn = re.sub(template_and_param_regex, '', fn)
@@ -128,7 +124,7 @@ def get_pr_titles(prs):
         r = requests.get(bugzilla_url % pr_id)
         bugs = r.json()['bugs']
         if len(bugs) == 1:
-            prs[idx] = 'PR %s/%s' % (bugs[0]['component'], pr_id)
+            prs[idx] = f"PR {bugs[0]['component']}/{pr_id}"
             out = '%s - %s\n' % (prs[idx], bugs[0]['summary'])
             if out not in output:
                 output.append(out)
@@ -148,10 +144,7 @@ def append_changelog_line(out, relative_path, text):
 
 
 def get_rel_path_if_prefixed(path, folder):
-    if path.startswith(folder):
-        return path[len(folder):].lstrip('/')
-    else:
-        return path
+    return path[len(folder):].lstrip('/') if path.startswith(folder) else path
 
 
 def generate_changelog(data, no_functions=False, fill_pr_titles=False,
@@ -167,7 +160,7 @@ def generate_changelog(data, no_functions=False, fill_pr_titles=False,
     if additional_prs:
         for apr in additional_prs:
             if not apr.startswith('PR ') and '/' in apr:
-                apr = 'PR ' + apr
+                apr = f'PR {apr}'
             if apr not in prs:
                 prs.append(apr)
     for file in diff:
@@ -186,32 +179,27 @@ def generate_changelog(data, no_functions=False, fill_pr_titles=False,
             # contains commented code which a note that it
             # has not been tested due to a certain PR or DR.
             this_file_prs = []
-            hunks = list(file)
-            if hunks:
-                for line in hunks[0][0:10]:
-                    m = pr_regex.search(line.value)
-                    if m:
+            if hunks := list(file):
+                for line in hunks[0][:10]:
+                    if m := pr_regex.search(line.value):
                         pr = m.group('pr')
                         if pr not in prs:
                             prs.append(pr)
                             this_file_prs.append(pr.split('/')[-1])
-                    else:
-                        m = dr_regex.search(line.value)
-                        if m:
-                            dr = m.group('dr')
-                            if dr not in prs:
-                                prs.append(dr)
-                                this_file_prs.append(dr.split('/')[-1])
-                        elif dg_regex.search(line.value):
-                            # Found dg-warning/dg-error line
-                            break
+                    elif m := dr_regex.search(line.value):
+                        dr = m.group('dr')
+                        if dr not in prs:
+                            prs.append(dr)
+                            this_file_prs.append(dr.split('/')[-1])
+                    elif dg_regex.search(line.value):
+                        # Found dg-warning/dg-error line
+                        break
 
             # PR number in the file name
             fname = os.path.basename(file.path)
-            m = pr_filename_regex.search(fname)
-            if m:
+            if m := pr_filename_regex.search(fname):
                 pr = m.group('pr')
-                pr2 = 'PR ' + pr
+                pr2 = f'PR {pr}'
                 if pr not in this_file_prs and pr2 not in prs:
                     prs.append(pr2)
 
@@ -330,14 +318,13 @@ def update_copyright(data):
 
 
 def skip_line_in_changelog(line):
-    if line.lower().startswith(CO_AUTHORED_BY_PREFIX) or line.startswith('#'):
-        return False
-    return True
+    return not line.lower().startswith(
+        CO_AUTHORED_BY_PREFIX
+    ) and not line.startswith('#')
 
 
 if __name__ == '__main__':
-    extra_args = os.getenv('GCC_MKLOG_ARGS')
-    if extra_args:
+    if extra_args := os.getenv('GCC_MKLOG_ARGS'):
         sys.argv += json.loads(extra_args)
 
     parser = argparse.ArgumentParser(description=help_message)
@@ -377,9 +364,7 @@ if __name__ == '__main__':
             with open(args.changelog, 'w') as f:
                 if not start or not start[0]:
                     if len(prs) == 1:
-                        # initial commit subject line 'component: [PRnnnnn]'
-                        m = prnum_regex.match(prs[0])
-                        if m:
+                        if m := prnum_regex.match(prs[0]):
                             title = f'{m.group("comp")}: [PR{m.group("num")}]'
                             start.insert(0, title)
                 if start:

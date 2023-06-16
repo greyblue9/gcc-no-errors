@@ -83,7 +83,7 @@ def arch_canonicalize(arch, isa_spec):
       if not is_isa_spec_2p2:
         extra_long_ext = ['zicsr', 'zifencei']
   else:
-    raise Exception("Unexpected arch: `%s`" % arch[:5])
+    raise Exception(f"Unexpected arch: `{arch[:5]}`")
 
   # Find any Z, S, H or X
   long_ext_prefixes_idx = map(lambda x: arch.find(x), LONG_EXT_PREFIXES)
@@ -121,11 +121,11 @@ def arch_canonicalize(arch, isa_spec):
   # becasue we just append extensions list to the arch string.
   std_exts += list(filter(lambda x:len(x) == 1, long_exts))
 
-  def longext_sort (exts):
+  def longext_sort(exts):
     if not exts.startswith("zxm") and exts.startswith("z"):
       # If "Z" extensions are named, they should be ordered first by CANONICAL.
       if exts[1] not in CANONICAL_ORDER:
-        raise Exception("Unsupported extension `%s`" % exts)
+        raise Exception(f"Unsupported extension `{exts}`")
       canonical_sort = CANONICAL_ORDER.index(exts[1])
     else:
       canonical_sort = -1
@@ -149,7 +149,7 @@ def arch_canonicalize(arch, isa_spec):
     if ext == '_':
       continue
     if ext not in CANONICAL_ORDER:
-      raise Exception("Unsupported extension `%s`" % ext)
+      raise Exception(f"Unsupported extension `{ext}`")
 
   # Concat rest of the multi-char extensions.
   if long_exts:
@@ -158,7 +158,7 @@ def arch_canonicalize(arch, isa_spec):
   return new_arch
 
 if len(sys.argv) < 2:
-  print ("Usage: %s <arch_str> [<arch_str>*]" % sys.argv)
+  print(f"Usage: {sys.argv} <arch_str> [<arch_str>*]")
   sys.exit(1)
 
 parser = argparse.ArgumentParser()

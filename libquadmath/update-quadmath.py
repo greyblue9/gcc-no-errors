@@ -46,7 +46,6 @@ def update_sources(glibc_srcdir, quadmath_srcdir):
     quadmath_math = os.path.join(quadmath_srcdir, 'math')
     float128_h = os.path.join(glibc_srcdir,
                               'sysdeps/ieee754/float128/float128_private.h')
-    repl_map = {}
     # Use float128_private.h to get an initial list of names to
     # replace for libquadmath.
     repl_names = {}
@@ -59,8 +58,8 @@ def update_sources(glibc_srcdir, quadmath_srcdir):
                                  '[ \t]+([a-zA-Z0-9_]+)', line)
             if not match:
                 continue
-            macro = match.group(1)
-            result = match.group(2)
+            macro = match[1]
+            result = match[2]
             result = result.replace('f128', 'q')
             result = result.replace('__ieee754_', '')
             if result not in ('__expq_table', '__sincosq_table',
@@ -75,7 +74,7 @@ def update_sources(glibc_srcdir, quadmath_srcdir):
                 # of leading '__' was inappropriate and a leading
                 # '__quadmath_' needs adding instead.  In the
                 # libquadmath context, lgammaq_r is an internal name.
-                result = '__quadmath_' + result
+                result = f'__quadmath_{result}'
             if result == 'ieee854_float128_shape_type':
                 result = 'ieee854_float128'
             if result == 'HUGE_VAL_F128':
@@ -91,16 +90,14 @@ def update_sources(glibc_srcdir, quadmath_srcdir):
                   'SET_LDOUBLE_MSW64', 'SET_LDOUBLE_WORDS64'):
         repl_names[macro] = macro.replace('LDOUBLE', 'FLT128')
     # The classication macros are replaced.
-    for macro in ('FP_NAN', 'FP_INFINITE', 'FP_ZERO', 'FP_SUBNORMAL',
-                  'FP_NORMAL'):
-        repl_names[macro] = 'QUAD' + macro
+    for macro in ('FP_NAN', 'FP_INFINITE', 'FP_ZERO', 'FP_SUBNORMAL', 'FP_NORMAL'):
+        repl_names[macro] = f'QUAD{macro}'
     for macro in ('fpclassify', 'signbit', 'isnan', 'isinf', 'issignaling'):
-        repl_names[macro] = macro + 'q'
+        repl_names[macro] = f'{macro}q'
     repl_names['isfinite'] = 'finiteq'
     # Map comparison macros to the __builtin forms.
-    for macro in ('isgreater', 'isgreaterequal', 'isless', 'islessequal',
-                  'islessgreater', 'isunordered'):
-        repl_names[macro] = '__builtin_' + macro
+    for macro in ('isgreater', 'isgreaterequal', 'isless', 'islessequal', 'islessgreater', 'isunordered'):
+        repl_names[macro] = f'__builtin_{macro}'
     # Replace macros used in type-generic templates in glibc.
     repl_names['FLOAT'] = '__float128'
     repl_names['CFLOAT'] = '__complex128'
@@ -108,13 +105,10 @@ def update_sources(glibc_srcdir, quadmath_srcdir):
     repl_names['M_HUGE_VAL'] = 'HUGE_VALQ'
     repl_names['INFINITY'] = '__builtin_inf ()'
     for macro in ('MIN_EXP', 'MAX_EXP', 'MIN', 'MAX', 'MANT_DIG', 'EPSILON'):
-        repl_names['M_%s' % macro] = 'FLT128_%s' % macro
-    for macro in ('COPYSIGN', 'FABS', 'SINCOS', 'SCALBN', 'LOG1P', 'ATAN2',
-                  'COSH', 'EXP', 'HYPOT', 'LOG', 'SINH', 'SQRT'):
-        repl_names['M_%s' % macro] = macro.lower() + 'q'
-    # Each such name is replaced when it appears as a whole word.
-    for macro in repl_names:
-        repl_map[r'\b%s\b' % macro] = repl_names[macro]
+        repl_names[f'M_{macro}'] = f'FLT128_{macro}'
+    for macro in ('COPYSIGN', 'FABS', 'SINCOS', 'SCALBN', 'LOG1P', 'ATAN2', 'COSH', 'EXP', 'HYPOT', 'LOG', 'SINH', 'SQRT'):
+        repl_names[f'M_{macro}'] = f'{macro.lower()}q'
+    repl_map = {r'\b%s\b' % macro: repl_names[macro] for macro in repl_names}
     # Also replace the L macro for constants; likewise M_LIT and M_MLIT.
     repl_map[r'\bL *\((.*?)\)'] = r'\1Q'
     repl_map[r'\bM_LIT *\((.*?)\)'] = r'\1Q'

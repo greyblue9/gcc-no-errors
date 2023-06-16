@@ -48,10 +48,12 @@ def filter_src(text):
                   text)
 
     # Remove GTY markings (potentially multiline ones):
-    text = re.sub('GTY' + OPT_WS + r'\(\(.*?\)\)\s+',
-                  '',
-                  text,
-                  flags=(re.MULTILINE|re.DOTALL))
+    text = re.sub(
+        f'GTY{OPT_WS}' + r'\(\(.*?\)\)\s+',
+        '',
+        text,
+        flags=(re.MULTILINE | re.DOTALL),
+    )
 
     # Strip out 'ATTRIBUTE_UNUSED'
     text = re.sub('\sATTRIBUTE_UNUSED',
@@ -59,9 +61,7 @@ def filter_src(text):
                   text)
 
     # PARAMS(()) is used for K&R compatibility. See ansidecl.h.
-    text = re.sub('PARAMS' + OPT_WS + r'\(\((.*?)\)\)',
-                  r'(\1)',
-                  text)
+    text = re.sub(f'PARAMS{OPT_WS}' + r'\(\((.*?)\)\)', r'(\1)', text)
 
     # Replace 'ENUM_BITFIELD(enum_name)' with 'enum enum_name'.
     text = re.sub('ENUM_BITFIELD\s*\(([^\)]*)\)',

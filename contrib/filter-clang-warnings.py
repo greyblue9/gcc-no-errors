@@ -72,12 +72,12 @@ args = parser.parse_args()
 
 lines = [line.strip() for line in open(args.log)]
 messages = set()
+token = ': warning: '
 for line in lines:
-    token = ': warning: '
     i = line.find(token)
     if i != -1:
-        location = line[:i]
         message = line[i + len(token):]
+        location = line[:i]
         if '/libffi/' in location or location.startswith('Makefile'):
             continue
         if not skip_warning(location, message):

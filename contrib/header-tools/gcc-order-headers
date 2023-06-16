@@ -7,7 +7,7 @@ import re
 from headerutils import *
 import Queue
 
-file_list = list ()
+file_list = []
 usage = False
 
 ignore_conditional = False
@@ -60,7 +60,7 @@ dups = { }
 # They are ordered such that everything resolves properly.
 exclude_processing = [ "tree-vectorizer.h" , "c-target.h", "c-target-def.h", "cp-tree.h", "c-common.h", "c-tree.h", "gfortran.h" ]
 
-master_list = list ()
+master_list = []
 # where include file comes from in src
 h_from = { }
 
@@ -92,11 +92,11 @@ def print_dups ():
     print string
 
 
-def process_known_dups ():
-  # rtl.h gets tagged as a duplicate includer for all of coretypes.h, but that
-  # is really for only generator files
-  rtl_remove = includes["coretypes.h"][1] + ["statistics.h", "vec.h"]
+def process_known_dups():
   if dups:
+    # rtl.h gets tagged as a duplicate includer for all of coretypes.h, but that
+    # is really for only generator files
+    rtl_remove = includes["coretypes.h"][1] + ["statistics.h", "vec.h"]
     for i in rtl_remove:
       if dups[i] and "rtl.h" in dups[i]:
         dups[i].remove("rtl.h")
@@ -110,7 +110,7 @@ def process_known_dups ():
 
 # This function scans back thorugh the list of headers which included other
 # headers to determine what file in HEADER_LIST brought 'HEADER' in.
-def indirectly_included (header, header_list):
+def indirectly_included(header, header_list):
   nm = os.path.basename (header)
   while nm and includes.get(nm):
     if includes[nm][0] in header_list:
@@ -128,9 +128,8 @@ def indirectly_included (header, header_list):
       for f in dups["diagnostic-core.h"]:
         if f in header_list:
           return f
-    else:
-      if header in header_list:
-        return header
+    elif header in header_list:
+      return header
     # Now check if diagnostics is included indirectly anywhere
     header = "diagnostic.h"
 
@@ -139,21 +138,20 @@ def indirectly_included (header, header_list):
       for f in dups["diagnostic.h"]:
         if f in header_list:
           return f
-    else:
-      if header in header_list:
-        return header 
+    elif header in header_list:
+      return header 
 
   return ""
 
 
 # This function will take a list of headers from a source file and return 
 # the desired new new order of the canonical headers in DESIRED_ORDER. 
-def get_new_order (src_h, desired_order):
-  new_order = list ()
+def get_new_order(src_h, desired_order):
+  new_order = []
   for h in desired_order:
     if h in master_list:
       # Create the list of nested headers which included this file.
-      iclist = list ()
+      iclist = []
       ib = includes[h][0]
       while ib:
         iclist.insert(0, ib)
@@ -165,9 +163,8 @@ def get_new_order (src_h, desired_order):
             if x not in new_order and x[:10] != "diagnostic" and h not in exclude_special:
               new_order.append (x)
               break;
-      else:
-        if h not in new_order:
-          new_order.append (h)
+      elif h not in new_order:
+        new_order.append (h)
 
   f = ""
   if "diagnostic.h" in src_h:
@@ -175,7 +172,7 @@ def get_new_order (src_h, desired_order):
   elif "diagnostic-core.h" in src_h:
     f = "diagnostic-core.h"
 
- 
+
   # If either diagnostic header was directly included in the main file, check to
   # see if its already included indirectly, or whether we need to add it to the
   # end of the canonically orders headers.
@@ -189,34 +186,32 @@ def get_new_order (src_h, desired_order):
     
 
 # stack of files to process
-process_stack = list ()
+process_stack = []
 
-def process_one (info):
+def process_one(info):
   i = info[0]
   owner = info[1]
   name = os.path.basename(i)
   if os.path.exists (i):
-    if includes.get(name) == None:
+    if includes.get(name) is None:
       l = find_unique_include_list (i)
       # create a list which has just basenames in it
-      new_list = list ()
+      new_list = []
       for x in l:
         new_list.append (os.path.basename (x))
         process_stack.append((x, name))
       includes[name] = (owner, new_list)
     elif owner:
-      if dups.get(name) == None:
+      if dups.get(name) is None:
         dups[name] = [ owner ]
       else:
         dups[name].append (owner)
-  else:
-    # seed tm.h with options.h since it is a build file and won't be seen. 
-    if not includes.get(name):
-      if name == "tm.h":
-        includes[name] = (owner, [ "options.h" ])
-        includes["options.h"] = ("tm.h", list ())
-      else:
-        includes[name] = (owner, list ())
+  elif not includes.get(name):
+    if name == "tm.h":
+      includes[name] = (owner, [ "options.h" ])
+      includes["options.h"] = "tm.h", []
+    else:
+      includes[name] = owner, []
 
 
 show_master = False

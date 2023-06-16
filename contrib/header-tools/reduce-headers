@@ -37,8 +37,8 @@ target_priority = [
 
 target_dir = ""
 build_dir = ""
-ignore_list = list()
-target_builds = list()
+ignore_list = []
+target_builds = []
 
 target_dict = { }
 header_dict = { }
@@ -61,16 +61,16 @@ def normalize_header (header):
 # append themselves on demand to the global list.
 # return entry for the specified header, knowing all sub entries are completed
 
-def get_header_info (header, s_path):
+def get_header_info(header, s_path):
   global header_dict
   global empty_iinfo
-  process_list = list ()
+  process_list = []
   location = ""
   bname = ""
   bname_iinfo = empty_iinfo
   for path in s_path:
-    if os.path.exists (path + "/" + header):
-      location = path + "/" + header
+    if os.path.exists(f"{path}/{header}"):
+      location = f"{path}/" + header
       break
 
   if location:
@@ -125,7 +125,16 @@ def get_header_info (header, s_path):
             consumes.update (ii_macro_consume (iinfo))
             incl.update (ii_include_list (iinfo))
 
-      bname_iinfo = (header, "build", list(incl), list(), list(consumes), list(defines), list(), list())
+      bname_iinfo = (
+          header,
+          "build",
+          list(incl),
+          [],
+          list(consumes),
+          list(defines),
+          [],
+          [],
+      )
 
       header_dict[bname] = bname_iinfo
       for i in incl:
@@ -135,15 +144,12 @@ def get_header_info (header, s_path):
 
 
 # return a list of all headers brought in by this header
-def all_headers (fname):
+def all_headers(fname):
   global header_dict
-  headers_stack = list()
-  headers_list = list()
-  if header_dict.get (fname) == None:
-    return list ()
-  for y in ii_include_list (header_dict[fname]):
-    headers_stack.append (y)
-
+  headers_list = []
+  if header_dict.get(fname) is None:
+    return []
+  headers_stack = list(ii_include_list (header_dict[fname]))
   while headers_stack:
     h = headers_stack.pop ()
     hn = normalize_header (h)
@@ -192,13 +198,13 @@ def get_obj_name (src_file):
     return src_file.replace (".cc", ".o")
   return ""
 
-def target_obj_exists (target, obj_name):
+def target_obj_exists(target, obj_name):
   global target_dict
   # look in a subdir if src has a subdir, then check gcc base directory.
   if target_dict.get(target):
-    obj = target_dict[target] + "/gcc/" + obj_name
+    obj = f"{target_dict[target]}/gcc/{obj_name}"
     if not os.path.exists (obj):
-      obj = target_dict[target] + "/gcc/" + os.path.basename(obj_name)
+      obj = f"{target_dict[target]}/gcc/{os.path.basename(obj_name)}"
     if os.path.exists (obj):
       return True
   return False

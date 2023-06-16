@@ -211,7 +211,7 @@ class TreePrinter:
         self.gdbval = gdbval
         self.node = Tree(gdbval)
 
-    def to_string (self):
+    def to_string(self):
         # like gcc/print-tree.c:print_node_brief
         # #define TREE_CODE(NODE) ((enum tree_code) (NODE)->base.code)
         # tree_code_name[(int) TREE_CODE (node)])
@@ -250,19 +250,17 @@ class TreePrinter:
         if intptr(val_tclass) == tcc_declaration:
             tree_DECL_NAME = self.node.DECL_NAME()
             if tree_DECL_NAME.is_nonnull():
-                 result += ' %s' % tree_DECL_NAME.IDENTIFIER_POINTER()
-            else:
-                pass # TODO: labels etc
+                result += f' {tree_DECL_NAME.IDENTIFIER_POINTER()}'
         elif intptr(val_tclass) == tcc_type:
             tree_TYPE_NAME = Tree(self.gdbval['type_common']['name'])
             if tree_TYPE_NAME.is_nonnull():
                 if tree_TYPE_NAME.TREE_CODE() == IDENTIFIER_NODE:
-                    result += ' %s' % tree_TYPE_NAME.IDENTIFIER_POINTER()
+                    result += f' {tree_TYPE_NAME.IDENTIFIER_POINTER()}'
                 elif tree_TYPE_NAME.TREE_CODE() == TYPE_DECL:
                     if tree_TYPE_NAME.DECL_NAME().is_nonnull():
-                        result += ' %s' % tree_TYPE_NAME.DECL_NAME().IDENTIFIER_POINTER()
+                        result += f' {tree_TYPE_NAME.DECL_NAME().IDENTIFIER_POINTER()}'
         if self.node.TREE_CODE() == IDENTIFIER_NODE:
-            result += ' %s' % self.node.IDENTIFIER_POINTER()
+            result += f' {self.node.IDENTIFIER_POINTER()}'
         elif self.node.TREE_CODE() == SSA_NAME:
             result += ' %u' % self.gdbval['base']['u']['version']
         # etc
@@ -293,12 +291,12 @@ class CgraphEdgePrinter:
     def __init__(self, gdbval):
         self.gdbval = gdbval
 
-    def to_string (self):
+    def to_string(self):
         result = '<cgraph_edge* 0x%x' % intptr(self.gdbval)
         if intptr(self.gdbval):
             src = SymtabNodePrinter(self.gdbval['caller']).to_string()
             dest = SymtabNodePrinter(self.gdbval['callee']).to_string()
-            result += ' (%s -> %s)' % (src, dest)
+            result += f' ({src} -> {dest})'
         result += '>'
         return result
 
@@ -306,12 +304,12 @@ class IpaReferencePrinter:
     def __init__(self, gdbval):
         self.gdbval = gdbval
 
-    def to_string (self):
+    def to_string(self):
         result = '<ipa_ref* 0x%x' % intptr(self.gdbval)
         if intptr(self.gdbval):
             src = SymtabNodePrinter(self.gdbval['referring']).to_string()
             dest = SymtabNodePrinter(self.gdbval['referred']).to_string()
-            result += ' (%s -> %s:%s)' % (src, dest, str(self.gdbval['use']))
+            result += f" ({src} -> {dest}:{str(self.gdbval['use'])})"
         result += '>'
         return result
 
@@ -323,15 +321,15 @@ class DWDieRefPrinter:
     def __init__(self, gdbval):
         self.gdbval = gdbval
 
-    def to_string (self):
+    def to_string(self):
         if intptr(self.gdbval) == 0:
             return '<dw_die_ref 0x0>'
         result = '<dw_die_ref 0x%x' % intptr(self.gdbval)
-        result += ' %s' % self.gdbval['die_tag']
+        result += f" {self.gdbval['die_tag']}"
         if intptr(self.gdbval['die_parent']) != 0:
             result += ' <parent=0x%x %s>' % (intptr(self.gdbval['die_parent']),
                                              self.gdbval['die_parent']['die_tag'])
-                                             
+
         result += '>'
         return result
 
@@ -368,10 +366,10 @@ class BasicBlockPrinter:
     def __init__(self, gdbval):
         self.gdbval = gdbval
 
-    def to_string (self):
+    def to_string(self):
         result = '<basic_block 0x%x' % intptr(self.gdbval)
         if intptr(self.gdbval):
-            result += ' (%s)' % bb_index_to_str(intptr(self.gdbval['index']))
+            result += f" ({bb_index_to_str(intptr(self.gdbval['index']))})"
         result += '>'
         return result
 
@@ -379,12 +377,12 @@ class CfgEdgePrinter:
     def __init__(self, gdbval):
         self.gdbval = gdbval
 
-    def to_string (self):
+    def to_string(self):
         result = '<edge 0x%x' % intptr(self.gdbval)
         if intptr(self.gdbval):
             src = bb_index_to_str(intptr(self.gdbval['src']['index']))
             dest = bb_index_to_str(intptr(self.gdbval['dest']['index']))
-            result += ' (%s -> %s)' % (src, dest)
+            result += f' ({src} -> {dest})'
         result += '>'
         return result
 
@@ -414,27 +412,17 @@ class RtxPrinter:
         self.gdbval = gdbval
         self.rtx = Rtx(gdbval)
 
-    def to_string (self):
+    def to_string(self):
         """
         For now, a cheap kludge: invoke the inferior's print
         function to get a string to use the user, and return an empty
         string for gdb
         """
         # We use print_inline_rtx to avoid a trailing newline
-        gdb.execute('call print_inline_rtx (stderr, (const_rtx) %s, 0)'
-                    % intptr(self.gdbval))
+        gdb.execute(
+            f'call print_inline_rtx (stderr, (const_rtx) {intptr(self.gdbval)}, 0)'
+        )
         return ''
-
-        # or by hand; based on gcc/print-rtl.c:print_rtx
-        result = ('<rtx_def 0x%x'
-                  % (intptr(self.gdbval)))
-        code = self.rtx.GET_CODE()
-        result += ' (%s' % GET_RTX_NAME(code)
-        format_ = GET_RTX_FORMAT(code)
-        for i in range(GET_RTX_LENGTH(code)):
-            print(format_[i])
-        result += ')>'
-        return result
 
 ######################################################################
 
@@ -553,12 +541,14 @@ class GdbPrettyPrinters(gdb.printing.PrettyPrinter):
     def __call__(self, gdbval):
         type_ = gdbval.type.unqualified()
         str_type = str(type_)
-        for printer in self.subprinters:
-            if printer.enabled and printer.handles_type(str_type):
-                return printer.class_(gdbval)
-
-        # Couldn't find a pretty printer (or it was disabled):
-        return None
+        return next(
+            (
+                printer.class_(gdbval)
+                for printer in self.subprinters
+                if printer.enabled and printer.handles_type(str_type)
+            ),
+            None,
+        )
 
 
 def build_pretty_printer():
@@ -632,8 +622,7 @@ def find_gcc_source_dir():
     # Use location of global "g" to locate the source tree
     sym_g = gdb.lookup_global_symbol('g')
     path = sym_g.symtab.filename # e.g. '../../src/gcc/context.h'
-    srcdir = os.path.split(path)[0] # e.g. '../../src/gcc'
-    return srcdir
+    return os.path.split(path)[0]
 
 class PassNames:
     """Parse passes.def, gathering a list of pass class names"""
@@ -642,9 +631,8 @@ class PassNames:
         self.names = []
         with open(os.path.join(srcdir, 'passes.def')) as f:
             for line in f:
-                m = re.match('\s*NEXT_PASS \(([^,]+).*\);', line)
-                if m:
-                    self.names.append(m.group(1))
+                if m := re.match('\s*NEXT_PASS \(([^,]+).*\);', line):
+                    self.names.append(m[1])
 
 class BreakOnPass(gdb.Command):
     """
@@ -689,7 +677,7 @@ class BreakOnPass(gdb.Command):
                 if name.startswith(text)]
 
     def invoke(self, arg, from_tty):
-        sym = '(anonymous namespace)::%s::execute' % arg
+        sym = f'(anonymous namespace)::{arg}::execute'
         breakpoint = gdb.Breakpoint(sym)
 
 BreakOnPass()
@@ -738,13 +726,13 @@ class DumpFn(gdb.Command):
         # Set func
         if len(args) - base_arg >= 1:
             funcname = args[base_arg]
-            printfuncname = "function %s" % funcname
+            printfuncname = f"function {funcname}"
         else:
             funcname = "cfun ? cfun->decl : current_function_decl"
             printfuncname = "current function"
         func = gdb.parse_and_eval(funcname)
         if func == 0:
-            print ("Could not find %s" % printfuncname)
+            print(f"Could not find {printfuncname}")
             return
         func = "(tree)%u" % func
 
@@ -763,7 +751,7 @@ class DumpFn(gdb.Command):
         # Open file
         fp = gdb.parse_and_eval("(FILE *) fopen (\"%s\", \"w\")" % filename)
         if fp == 0:
-            print ("Could not open file: %s" % filename)
+            print(f"Could not open file: {filename}")
             return
 
         # Dump function to file
@@ -771,9 +759,9 @@ class DumpFn(gdb.Command):
                                (func, fp, flags))
 
         # Close file
-        ret = gdb.parse_and_eval("(int) fclose (%s)" % fp)
+        ret = gdb.parse_and_eval(f"(int) fclose ({fp})")
         if ret != 0:
-            print ("Could not close file: %s" % filename)
+            print(f"Could not close file: {filename}")
             return
 
         # Open file in editor, if necessary
@@ -808,22 +796,18 @@ class DotFn(gdb.Command):
         # Set func
         if len(args) >= 1:
             funcname = args[0]
-            printfuncname = "function %s" % funcname
+            printfuncname = f"function {funcname}"
         else:
             funcname = "cfun"
             printfuncname = "current function"
         func = gdb.parse_and_eval(funcname)
         if func == 0:
-            print("Could not find %s" % printfuncname)
+            print(f"Could not find {printfuncname}")
             return
-        func = "(struct function *)%s" % func
+        func = f"(struct function *){func}"
 
         # Set flags
-        if len(args) >= 2:
-            flags = gdb.parse_and_eval(args[1])
-        else:
-            flags = 0
-
+        flags = gdb.parse_and_eval(args[1]) if len(args) >= 2 else 0
         # Get temp file
         f = tempfile.NamedTemporaryFile(delete=False)
         filename = f.name
@@ -839,12 +823,12 @@ class DotFn(gdb.Command):
         _ = gdb.parse_and_eval("start_graph_dump (%s, \"<debug>\")" % fp)
         _ = gdb.parse_and_eval("print_graph_cfg (%s, %s, %u)"
                                % (fp, func, flags))
-        _ = gdb.parse_and_eval("end_graph_dump (%s)" % fp)
+        _ = gdb.parse_and_eval(f"end_graph_dump ({fp})")
 
         # Close temp file
-        ret = gdb.parse_and_eval("(int) fclose (%s)" % fp)
+        ret = gdb.parse_and_eval(f"(int) fclose ({fp})")
         if ret != 0:
-            print("Could not close temp file: %s" % filename)
+            print(f"Could not close temp file: {filename}")
             return
 
         # Show graph in temp file

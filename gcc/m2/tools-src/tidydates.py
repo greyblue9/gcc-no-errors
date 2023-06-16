@@ -49,10 +49,7 @@ def is_year(year):
     # is_year - returns True if, year, is legal.
     if len(year) == 5:
         year = year[:-1]
-    for c in year:
-        if not c.isdigit():
-            return False
-    return True
+    return all(c.isdigit() for c in year)
 
 
 def handle_copyright(outfile, lines, n, leader1, leader2):
@@ -73,10 +70,7 @@ def handle_copyright(outfile, lines, n, leader1, leader2):
         else:
             e = d[0]
             punctuation = ''
-            if len(d) == 1:
-                d = []
-            else:
-                d = d[1:]
+            d = [] if len(d) == 1 else d[1:]
             if c > max_line_length:
                 outfile.write('\n')
                 outfile.write(leader1)
@@ -84,7 +78,7 @@ def handle_copyright(outfile, lines, n, leader1, leader2):
                 outfile.write(' '*(start-2))
                 c = start
             if is_year(e):
-                if (e[-1] == '.') or (e[-1] == ','):
+                if e[-1] in ['.', ',']:
                     punctuation = e[-1]
                     e = e[:-1]
                 else:
@@ -92,7 +86,7 @@ def handle_copyright(outfile, lines, n, leader1, leader2):
             else:
                 seen_date = False
             if seen_date:
-                if not (e in years):
+                if e not in years:
                     c += len(e) + len(punctuation)
                     outfile.write(' ')
                     outfile.write(e)

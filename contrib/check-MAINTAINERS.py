@@ -44,9 +44,7 @@ def sort_by_surname(line):
     surname = parts[-1]
 
     # Special-case some names
-    if name == 'Stefan Schulze Frielinghaus':
-        surname = parts[1]
-    elif name == 'Kris Van Hees':
+    if name in ['Stefan Schulze Frielinghaus', 'Kris Van Hees']:
         surname = parts[1]
     elif surname == "d'Humieres":
         surname = 'Humieres'

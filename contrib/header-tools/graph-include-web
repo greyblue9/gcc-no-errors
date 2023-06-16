@@ -10,33 +10,30 @@ def pretty_name (name):
   return name.replace(".","_").replace("-","_").replace("/","_").replace("+","_");
 
 
-include_files = list()
+include_files = []
 edges = 0
 one_c = False
-clink = list()
+clink = []
 noterm = False
 
-def build_inclist (output, filen):
+def build_inclist(output, filen):
   global edges
   global one_c
   global clink
   global noterm
   inc = build_include_list (filen)
-  if one_c and filen[-2:] == ".c":
-    pn = "all_c"
-  else:
-    pn = pretty_name(filen)
+  pn = "all_c" if one_c and filen[-2:] == ".c" else pretty_name(filen)
   for nm in inc:
     if pn == "all_c":
       if nm not in clink:
         if len(build_include_list(nm)) != 0 or not noterm:
-          output.write (pretty_name(nm) + " -> " + pn + ";\n")
+          output.write(f"{pretty_name(nm)} -> {pn}" + ";\n")
           edges = edges + 1
           if nm not in include_files:
             include_files.append(nm)
         clink.append (nm)
     else:
-      output.write (pretty_name(nm) + " -> " + pn + ";\n")
+      output.write(f"{pretty_name(nm)} -> {pn}" + ";\n")
       edges = edges + 1
       if nm not in include_files:
         include_files.append(nm)
@@ -45,7 +42,7 @@ def build_inclist (output, filen):
 dotname = "graph.dot"
 graphname = "graph.png"
 
-def build_dot_file (file_list):
+def build_dot_file(file_list):
   global one_c
   output = open(dotname, "w")
   output.write ("digraph incweb {\n");
@@ -60,8 +57,7 @@ def build_dot_file (file_list):
         output.write (pretty_name (x) + "[shape=box];\n")
 
   for x in include_files:
-    term = build_inclist (output, x)
-    if term:
+    if term := build_inclist(output, x):
       output.write (pretty_name(x) + " [style=filled];\n")
 
   output.write ("}\n");

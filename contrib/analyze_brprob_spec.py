@@ -42,11 +42,8 @@ benchmarks = os.listdir(args.location)
 for b in sorted(benchmarks):
     dumps = []
     for root, dirs, files in os.walk(os.path.join(args.location, b)):
-        for x in files:
-            if x.endswith('.profile'):
-                dumps.append(os.path.join(root, x))
-
-    if len(dumps) == 0:
+        dumps.extend(os.path.join(root, x) for x in files if x.endswith('.profile'))
+    if not dumps:
         continue
 
     temp = tempfile.NamedTemporaryFile(delete = False)

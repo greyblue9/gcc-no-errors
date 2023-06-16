@@ -61,7 +61,7 @@ def get_branches_by_comments(comments):
     return versions
 
 def get_bugs(query):
-    u = base_url + 'bug'
+    u = f'{base_url}bug'
     r = requests.get(u, params = query)
     return r.json()['bugs']
 
@@ -75,19 +75,12 @@ def search():
         for b in sorted(bugs, key = lambda x: x['id'], reverse = True):
             id = b['id']
 
-            fail = b['cf_known_to_fail']
-            work = b['cf_known_to_work']
-
-            u = base_url + 'bug/' + str(id) + '/comment'
+            u = f'{base_url}bug/{str(id)}/comment'
             r = requests.get(u).json()
             keys = list(r['bugs'].keys())
             assert len(keys) == 1
             comments = r['bugs'][keys[0]]['comments']
-            skip = False
-            for c in comments:
-                if closure_question in c['text']:
-                    skip = True
-                    break
+            skip = any(closure_question in c['text'] for c in comments)
             if skip:
                 continue
 
@@ -95,13 +88,18 @@ def search():
                               key=lambda b: 999 if b is 'master' else int(b))
             if branches:
                 branches_str = ','.join(branches)
+                fail = b['cf_known_to_fail']
+                work = b['cf_known_to_work']
+
                 print('%-30s%-30s%-40s%-40s%-60s' % ('https://gcc.gnu.org/PR%d' % id, branches_str, fail, work, b['summary']), flush=True)
                 ids.append(id)
 
     # print all URL lists
     print('\nBugzilla lists:')
-    while len(ids) > 0:
-        print('https://gcc.gnu.org/bugzilla/buglist.cgi?bug_id=%s' % ','.join([str(x) for x in ids[:url_page_size]]))
+    while ids:
+        print(
+            f"https://gcc.gnu.org/bugzilla/buglist.cgi?bug_id={','.join([str(x) for x in ids[:url_page_size]])}"
+        )
         ids = ids[url_page_size:]
 
 print('Bugzilla URL page size: %d' % url_page_size)

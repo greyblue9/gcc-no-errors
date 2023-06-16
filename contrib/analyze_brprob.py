@@ -71,8 +71,7 @@ import argparse
 
 from math import *
 
-counter_aggregates = set(['combined', 'first match', 'DS theory',
-    'no prediction'])
+counter_aggregates = {'combined', 'first match', 'DS theory', 'no prediction'}
 hot_threshold = 10
 
 def percentage(a, b):
@@ -91,7 +90,7 @@ def average_cutoff(values, cut):
 
 def median(values):
     values.sort()
-    return values[int(len(values) / 2)]
+    return values[len(values) // 2]
 
 class PredictDefFile:
     def __init__(self, path):
@@ -109,7 +108,7 @@ class PredictDefFile:
                 if l.endswith(','):
                     l += next_line
                 m = re.match('.*"(.*)".*', l)
-                p = m.group(1)
+                p = m[1]
             elif l == '':
                 p = None
 
@@ -119,7 +118,7 @@ class PredictDefFile:
 
                 m = re.match('.*HITRATE \(([^)]*)\).*', l)
                 if (m != None):
-                    self.predictors[p] = int(m.group(1))
+                    self.predictors[p] = int(m[1])
 
                     # modify the line
                     if heuristic != None:
@@ -152,13 +151,13 @@ class Summary:
         return len(self.edges)
 
     def hits(self):
-        return sum([x.hits for x in self.edges])
+        return sum(x.hits for x in self.edges)
 
     def fits(self):
-        return sum([x.fits for x in self.edges])
+        return sum(x.fits for x in self.edges)
 
     def count(self):
-        return sum([x.count for x in self.edges])
+        return sum(x.count for x in self.edges)
 
     def successfull_branches(self):
         return len([x for x in self.edges if 2 * x.hits >= x.count])
@@ -178,15 +177,14 @@ class Summary:
         return "%.1f%s" % (v, 'Y')
 
     def count(self):
-        return sum([x.count for x in self.edges])
+        return sum(x.count for x in self.edges)
 
     def print(self, branches_max, count_max, predict_def):
         # filter out most hot edges (if requested)
         self.edges = sorted(self.edges, reverse = True, key = lambda x: x.count)
         if args.coverage_threshold != None:
             threshold = args.coverage_threshold * self.count() / 100
-            edges = [x for x in self.edges if x.count < threshold]
-            if len(edges) != 0:
+            if edges := [x for x in self.edges if x.count < threshold]:
                 self.edges = edges
 
         predicted_as = None
@@ -209,14 +207,21 @@ class Summary:
             print(' ' * 20, end = '')
 
         # print details about the most important edges
-        if args.coverage_threshold == None:
+        if args.coverage_threshold is None:
             edges = [x for x in self.edges[:100] if x.count * hot_threshold > self.count()]
             if args.verbose:
                 for c in edges:
                     r = 100.0 * c.count / self.count()
                     print(' %.0f%%:%d' % (r, c.count), end = '')
             elif len(edges) > 0:
-                print(' %0.0f%%:%d' % (100.0 * sum([x.count for x in edges]) / self.count(), len(edges)), end = '')
+                print(
+                    ' %0.0f%%:%d'
+                    % (
+                        100.0 * sum(x.count for x in edges) / self.count(),
+                        len(edges),
+                    ),
+                    end='',
+                )
 
         print()
 
@@ -227,7 +232,7 @@ class Profile:
         self.niter_vector = []
 
     def add(self, name, prediction, count, hits):
-        if not name in self.heuristics:
+        if name not in self.heuristics:
             self.heuristics[name] = Summary(name)
 
         s = self.heuristics[name]
@@ -244,10 +249,10 @@ class Profile:
             self.niter_vector.append(niter)
 
     def branches_max(self):
-        return max([v.branches() for k, v in self.heuristics.items()])
+        return max(v.branches() for k, v in self.heuristics.items())
 
     def count_max(self):
-        return max([v.count() for k, v in self.heuristics.items()])
+        return max(v.count() for k, v in self.heuristics.items())
 
     def print_group(self, sorting, group_name, heuristics, predict_def):
         count_max = self.count_max()

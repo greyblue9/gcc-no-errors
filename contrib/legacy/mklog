@@ -87,11 +87,10 @@ EMAIL = ...
   mklog_conf = os.path.expanduser('~/.mklog')
   if os.path.exists(mklog_conf):
     attrs = {}
-    f = open(mklog_conf)
-    for s in f:
-      if cache.match(r'^\s*([a-zA-Z0-9_]+)\s*=\s*(.*?)\s*$', s):
-        attrs[cache.group(1)] = cache.group(2)
-    f.close()
+    with open(mklog_conf) as f:
+      for s in f:
+        if cache.match(r'^\s*([a-zA-Z0-9_]+)\s*=\s*(.*?)\s*$', s):
+          attrs[cache.group(1)] = cache.group(2)
     if 'NAME' not in attrs:
       error("'NAME' not present in .mklog")
     if 'EMAIL' not in attrs:
@@ -113,7 +112,7 @@ Please add missing git settings, or create a %s.
 
   return name, email
 
-def get_parent_changelog (s):
+def get_parent_changelog(s):
   """See which ChangeLog this file change should go to."""
 
   if s.find('\\') == -1 and s.find('/') == -1:
@@ -123,8 +122,8 @@ def get_parent_changelog (s):
 
   d = s
   while d:
-    clname = d + "/ChangeLog"
-    if os.path.exists(gcc_root + '/' + clname) or os.path.exists(clname):
+    clname = f"{d}/ChangeLog"
+    if os.path.exists(f'{gcc_root}/{clname}') or os.path.exists(clname):
       relname = s[len(d)+1:]
       return clname, relname
     d, _ = os.path.split(d)
@@ -154,26 +153,24 @@ class Hunk:
     self.ctx_diff = is_ctx_hunk_start(hdr)
 
   def dump(self):
-    print('%s' % self.hdr)
+    print(f'{self.hdr}')
     print('%s' % '\n'.join(self.lines))
 
   def is_file_addition(self):
     """Does hunk describe addition of file?"""
-    if self.ctx_diff:
-      for line in self.lines:
-        if re.match(r'^\*\*\* 0 \*\*\*\*', line):
-          return True
-    else:
+    if not self.ctx_diff:
       return re.match(r'^@@ -0,0 \+1.* @@', self.hdr)
+    for line in self.lines:
+      if re.match(r'^\*\*\* 0 \*\*\*\*', line):
+        return True
 
   def is_file_removal(self):
     """Does hunk describe removal of file?"""
-    if self.ctx_diff:
-      for line in self.lines:
-        if re.match(r'^--- 0 ----', line):
-          return True
-    else:
+    if not self.ctx_diff:
       return re.match(r'^@@ -1.* \+0,0 @@', self.hdr)
+    for line in self.lines:
+      if re.match(r'^--- 0 ----', line):
+        return True
 
 def is_file_diff_start(s):
   # Don't be fooled by context diff line markers:
@@ -287,12 +284,10 @@ def parse_patch(contents):
 
     # Extract real file name from left and right names.
     filename = None
-    if left == right:
+    if left == right or left != '/dev/null' and right == '/dev/null':
       filename = left
     elif left == '/dev/null':
       filename = right;
-    elif right == '/dev/null':
-      filename = left;
     else:
       comps = []
       while left and right:
@@ -303,7 +298,7 @@ def parse_patch(contents):
         comps.append(l)
 
       if not comps:
-        error("failed to extract common name for %s and %s" % (left, right))
+        error(f"failed to extract common name for {left} and {right}")
 
       comps.reverse()
       filename = '/'.join(comps)
@@ -342,11 +337,8 @@ def parse_patch(contents):
 
 
 def get_pr_from_testcase(line):
-    r = pr_regex.search(line)
-    if r != None:
-        return r.group(3)
-    else:
-        return None
+  r = pr_regex.search(line)
+  return r.group(3) if r != None else None
 
 def main():
   name, email = read_user_info()
@@ -407,8 +399,9 @@ otherwise writes to stdout.'
         change_msg = ": Remove.\n"
 
     _, ext = os.path.splitext(d.filename)
-    if (not change_msg and ext in ['.c', '.cpp', '.C', '.cc', '.h', '.inc', '.def']
-        and not 'testsuite' in d.filename):
+    if (not change_msg
+        and ext in ['.c', '.cpp', '.C', '.cc', '.h', '.inc', '.def']
+        and 'testsuite' not in d.filename):
       fns = []
       for hunk in d.hunks:
         for fn in find_changed_funs(hunk):
@@ -441,10 +434,7 @@ otherwise writes to stdout.'
 
   # Print log
   date = time.strftime('%Y-%m-%d')
-  bugmsg = ''
-  if len(prs):
-    bugmsg = '\n'.join(['\t' + pr for pr in prs]) + '\n'
-
+  bugmsg = '\n'.join(['\t' + pr for pr in prs]) + '\n' if len(prs) else ''
   for log_name, msg in sorted(logs.items()):
     out.write("""\
 %s:

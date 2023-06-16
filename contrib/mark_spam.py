@@ -32,7 +32,7 @@ base_url = 'https://gcc.gnu.org/bugzilla/rest.cgi/'
 def mark_as_spam(id, api_key, verbose):
     print('Marking as spam: PR%d' % id)
     # 1) get bug info to find 'cc'
-    u = base_url + 'bug/' + str(id)
+    u = f'{base_url}bug/{str(id)}'
     r = requests.get(u)
     response = json.loads(r.text)
 
@@ -66,7 +66,7 @@ def mark_as_spam(id, api_key, verbose):
         print(r.text)
 
     # 3) mark the first comment as spam
-    r = requests.get(u + '/comment')
+    r = requests.get(f'{u}/comment')
     response = json.loads(r.text)
     for c in response['bugs'][str(id)]['comments']:
         if c['creator'] == creator:
@@ -79,7 +79,7 @@ def mark_as_spam(id, api_key, verbose):
                 print(r.text)
 
     # 4) mark all attachments as spam
-    r = requests.get(u + '/attachment')
+    r = requests.get(f'{u}/attachment')
     response = json.loads(r.text)
     attachments = response['bugs'][str(id)]
     for a in attachments:
@@ -105,10 +105,6 @@ args = parser.parse_args()
 chunks = args.range.split(',')
 for c in chunks:
     parts = list(map(lambda x: int(x), c.split('-')))
-    if len(parts) == 1:
-        r = [parts[0]]
-    else:
-        r = range(parts[0], parts[1] + 1)
-
+    r = [parts[0]] if len(parts) == 1 else range(parts[0], parts[1] + 1)
     for id in r:
         mark_as_spam(id, args.api_key, args.verbose)

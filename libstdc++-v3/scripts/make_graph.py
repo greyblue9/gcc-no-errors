@@ -55,9 +55,10 @@ class res_getter:
 		for test in tests_dat.getElementsByTagName('test'):
 			test_name = test.attributes['name'].value
 			self.__test_to_f_names[test_name] = test.getElementsByTagName('file')[0].attributes['name'].value
-			cntnr_list = []
-			for cntnr in test.getElementsByTagName('cntnr'):
-				cntnr_list.append(cntnr.attributes['name'].value)
+			cntnr_list = [
+				cntnr.attributes['name'].value
+				for cntnr in test.getElementsByTagName('cntnr')
+			]
 			self.__test_to_container_res_sets[test_name] = cntnr_list
 
 	def __get_label(self, tst_dat, label_name):
@@ -92,7 +93,7 @@ class res_getter:
 
 	def get(self, res_dir, test_name):
 		cntnr_list = self.__test_to_container_res_sets[test_name]
-		f_name = res_dir + '/' + self.__test_to_f_names[test_name]
+		f_name = f'{res_dir}/{self.__test_to_f_names[test_name]}'
 		parsed = self.__parse_result_sets(f_name, cntnr_list)
 		x_label = parsed[0]
 		y_label = parsed[1]
@@ -297,7 +298,7 @@ def main(test_infos_f_name, res_dir, doc_dir):
 
 		# generate image
 		image_mkr = image_maker()
-		svg_of_name = doc_dir + '/pbds_' + test_name + '.svg'
+		svg_of_name = f'{doc_dir}/pbds_{test_name}.svg'
 		image_mkr.make(res, svg_of_name)
 
 if __name__ == "__main__":
